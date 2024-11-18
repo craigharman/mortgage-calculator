@@ -429,6 +429,18 @@ const exportToExcel = () => {
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new()
   
+  // Helper function to create valid Excel sheet name
+  function createSheetName(baseName, suffix) {
+    // Remove any invalid characters
+    const validName = baseName.replace(/[\\/?*[\]]/g, '')
+    // Limit the base name length to allow for suffix
+    const maxBaseLength = 27 - suffix.length
+    const truncatedName = validName.length > maxBaseLength 
+      ? validName.substring(0, maxBaseLength) + '...'
+      : validName
+    return truncatedName + suffix
+  }
+
   // Main Results Sheet
   const mainResults = [
     ['Mortgage Calculator Results'],
@@ -447,33 +459,20 @@ const exportToExcel = () => {
     ['Total Years', results.value.actualMonthsToRepay]
   ]
   
-  // Add saved scenarios if they exist
-  if (scenarios.value.length > 0) {
-    mainResults.push([''])
-    mainResults.push(['Saved Scenarios'])
-    mainResults.push(['Name', 'Monthly Payment', 'Total Interest', 'Total Cost', 'Years'])
-    scenarios.value.forEach(scenario => {
-      mainResults.push([
-        scenario.name,
-        formatCurrency(scenario.data.results.monthlyPayment),
-        formatCurrency(scenario.data.results.totalInterest),
-        formatCurrency(scenario.data.results.totalRepayment),
-        scenario.data.results.actualMonthsToRepay
-      ])
-    })
-  }
-  
   // Add additional payments if they exist
   if (formData.value.additionalPayments.length > 0) {
     mainResults.push([''])
     mainResults.push(['Additional Payments'])
-    mainResults.push(['Year', 'Amount'])
-    formData.value.additionalPayments.forEach(payment => {
-      mainResults.push([
-        payment.year,
-        formatCurrency(payment.amount)
-      ])
-    })
+    mainResults.push(['Year', 'Month', 'Amount'])
+    formData.value.additionalPayments
+      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+      .forEach(payment => {
+        mainResults.push([
+          payment.year,
+          months.value[payment.month - 1],
+          formatCurrency(payment.amount)
+        ])
+      })
   }
   
   // Add repayment changes if they exist
@@ -492,37 +491,25 @@ const exportToExcel = () => {
   // Create the main results worksheet
   const wsMain = XLSX.utils.aoa_to_sheet(mainResults)
   
-  // Set column widths
-  const wscols = [
+  // Set column widths for main sheet
+  wsMain['!cols'] = [
     {wch: 20}, // A
     {wch: 15}, // B
     {wch: 15}, // C
     {wch: 15}, // D
     {wch: 15}  // E
   ]
-  wsMain['!cols'] = wscols
   
-  // Add the worksheet to the workbook
-  XLSX.utils.book_append_sheet(wb, wsMain, 'Summary')
-  
-  // Create amortization schedule sheet if it exists
+  // Add the main worksheet to the workbook
+  XLSX.utils.book_append_sheet(wb, wsMain, createSheetName('Current', ''))
+
+  // Create amortization schedule sheet for current scenario
   if (chartData.value && chartData.value.balances.length > 0) {
-    const scheduleData = [
-      ['Year', 'Beginning Balance', 'Payment', 'Principal', 'Interest', 'Additional Payment', 'Ending Balance']
-    ]
-    
-    for (let i = 0; i < chartData.value.balances.length; i++) {
-      scheduleData.push([
-        chartData.value.timeLabels[i],
-        formatCurrency(chartData.value.balances[i]),
-        formatCurrency(chartData.value.standardBalances[i]),
-        formatCurrency(chartData.value.balances[i] - chartData.value.standardBalances[i]),
-        formatCurrency(chartData.value.standardBalances[i] - chartData.value.balances[i]),
-        formatCurrency(chartData.value.balances[i] - chartData.value.standardBalances[i]),
-        formatCurrency(chartData.value.balances[i])
-      ])
-    }
-    
+    const scheduleData = createAmortizationSchedule(
+      chartData.value.balances,
+      chartData.value.standardBalances,
+      chartData.value.timeLabels
+    )
     const wsSchedule = XLSX.utils.aoa_to_sheet(scheduleData)
     wsSchedule['!cols'] = [
       {wch: 8},  // Year
@@ -533,8 +520,118 @@ const exportToExcel = () => {
       {wch: 18}, // Additional Payment
       {wch: 15}  // Ending Balance
     ]
+    XLSX.utils.book_append_sheet(wb, wsSchedule, createSheetName('Current', ' Amort'))
+  }
+
+  // Add sheets for each scenario
+  if (scenarios.value.length > 0) {
+    scenarios.value.forEach(scenario => {
+      // Scenario Summary Sheet
+      const scenarioResults = [
+        [`Scenario: ${scenario.name}`],
+        [''],
+        ['Input Parameters'],
+        ['Loan Amount', formatCurrency(scenario.data.formData.loanAmount)],
+        ['Interest Rate', `${scenario.data.formData.interestRate}%`],
+        ['Loan Term', `${scenario.data.formData.loanTerm} years`],
+        ['Fees', formatCurrency(scenario.data.formData.feeAmount)],
+        [''],
+        ['Results'],
+        ['Monthly Payment', formatCurrency(scenario.data.results.monthlyPayment)],
+        ['Total Interest', formatCurrency(scenario.data.results.totalInterest)],
+        ['Total Cost', formatCurrency(scenario.data.results.totalRepayment)],
+        ['Payoff Date', scenario.data.results.finalRepaymentDate],
+        ['Total Years', scenario.data.results.actualMonthsToRepay]
+      ]
+
+      // Add additional payments if they exist
+      if (scenario.data.formData.additionalPayments.length > 0) {
+        scenarioResults.push([''])
+        scenarioResults.push(['Additional Payments'])
+        scenarioResults.push(['Year', 'Month', 'Amount'])
+        scenario.data.formData.additionalPayments
+          .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+          .forEach(payment => {
+            scenarioResults.push([
+              payment.year,
+              months.value[payment.month - 1],
+              formatCurrency(payment.amount)
+            ])
+          })
+      }
+
+      // Add repayment changes if they exist
+      if (scenario.data.formData.repaymentChanges.length > 0) {
+        scenarioResults.push([''])
+        scenarioResults.push(['Repayment Changes'])
+        scenarioResults.push(['Date', 'New Amount'])
+        scenario.data.formData.repaymentChanges.forEach(change => {
+          scenarioResults.push([
+            formatMonthYear(change.month - 1, change.year),
+            formatCurrency(change.amount)
+          ])
+        })
+      }
+
+      const wsScenario = XLSX.utils.aoa_to_sheet(scenarioResults)
+      wsScenario['!cols'] = [
+        {wch: 20}, // A
+        {wch: 15}, // B
+        {wch: 15}, // C
+        {wch: 15}, // D
+        {wch: 15}  // E
+      ]
+      XLSX.utils.book_append_sheet(wb, wsScenario, createSheetName(scenario.name, ' Sum'))
+
+      // Scenario Amortization Schedule
+      if (scenario.data.chartData && scenario.data.chartData.balances.length > 0) {
+        const scheduleData = createAmortizationSchedule(
+          scenario.data.chartData.balances,
+          scenario.data.chartData.standardBalances,
+          scenario.data.chartData.timeLabels
+        )
+        const wsSchedule = XLSX.utils.aoa_to_sheet(scheduleData)
+        wsSchedule['!cols'] = [
+          {wch: 8},  // Year
+          {wch: 15}, // Beginning Balance
+          {wch: 12}, // Payment
+          {wch: 12}, // Principal
+          {wch: 12}, // Interest
+          {wch: 18}, // Additional Payment
+          {wch: 15}  // Ending Balance
+        ]
+        XLSX.utils.book_append_sheet(wb, wsSchedule, createSheetName(scenario.name, ' Amort'))
+      }
+    })
+  }
+  
+  // Helper function to create amortization schedule data
+  function createAmortizationSchedule(balances, standardBalances, timeLabels) {
+    const scheduleData = [
+      ['Year', 'Beginning Balance', 'Payment', 'Principal', 'Interest', 'Additional Payment', 'Ending Balance']
+    ]
     
-    XLSX.utils.book_append_sheet(wb, wsSchedule, 'Amortization Schedule')
+    // Find the last non-zero balance index
+    let lastNonZeroIndex = balances.length - 1
+    while (lastNonZeroIndex >= 0 && balances[lastNonZeroIndex] === 0) {
+      lastNonZeroIndex--
+    }
+    // Include one more year to show the zero balance
+    lastNonZeroIndex = Math.min(lastNonZeroIndex + 1, balances.length - 1)
+    
+    for (let i = 0; i <= lastNonZeroIndex; i++) {
+      scheduleData.push([
+        timeLabels[i],
+        formatCurrency(balances[i]),
+        formatCurrency(standardBalances[i]),
+        formatCurrency(balances[i] - standardBalances[i]),
+        formatCurrency(standardBalances[i] - balances[i]),
+        formatCurrency(balances[i] - standardBalances[i]),
+        formatCurrency(balances[i])
+      ])
+    }
+    
+    return scheduleData
   }
   
   // Generate the Excel file
