@@ -203,13 +203,26 @@
 
         <!-- Results Section -->
         <div v-if="results" class="mt-8 space-y-4">
-          <h3 class="text-xl font-semibold text-gray-800">Results</h3>
+          <div class="flex justify-between items-center">
+            <h3 class="text-xl font-semibold text-gray-800">Results</h3>
+            <select 
+              v-if="scenarios.length > 0"
+              v-model="selectedScenarioId" 
+              class="select select-bordered w-full max-w-xs"
+            >
+              <option :value="null">Current Scenario</option>
+              <option v-for="scenario in scenarios" :key="scenario.id" :value="scenario.id">
+                {{ scenario.name }}
+              </option>
+            </select>
+          </div>
+
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <!-- First Row -->
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Monthly Payment</div>
-                <div class="stat-value text-2xl">${{ results.monthlyPayment?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-value text-2xl">${{ displayedStats?.monthlyPayment?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
                 <div class="stat-desc">Minimum required payment</div>
               </div>
             </div>
@@ -217,14 +230,14 @@
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Total Interest</div>
-                <div class="stat-value text-2xl">${{ results.totalInterest?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-value text-2xl">${{ displayedStats?.totalInterest?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
               </div>
             </div>
 
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Total Fees</div>
-                <div class="stat-value text-2xl">${{ results.totalFees?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-value text-2xl">${{ displayedStats?.totalFees?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
               </div>
             </div>
 
@@ -232,16 +245,16 @@
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Time to Repay</div>
-                <div class="stat-value text-2xl">{{ formatMonthsToYearsAndMonths(results.actualMonthsToRepay) }}</div>
+                <div class="stat-value text-2xl">{{ formatMonthsToYearsAndMonths(displayedStats?.actualMonthsToRepay) }}</div>
               </div>
             </div>
 
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Payoff Date</div>
-                <div class="stat-value text-2xl">{{ results.finalRepaymentDate ? new Date(results.finalRepaymentDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : '-' }}</div>
-                <div class="stat-desc text-success" v-if="results.actualMonthsToRepay < formData.loanTerm * 12">
-                  {{ formatMonthsToYearsAndMonths(formData.loanTerm * 12 - results.actualMonthsToRepay) }} earlier!
+                <div class="stat-value text-2xl">{{ displayedStats?.finalRepaymentDate ? new Date(displayedStats.finalRepaymentDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : '-' }}</div>
+                <div class="stat-desc text-success" v-if="displayedStats?.actualMonthsToRepay < formData.loanTerm * 12">
+                  {{ formatMonthsToYearsAndMonths(formData.loanTerm * 12 - displayedStats.actualMonthsToRepay) }} earlier!
                 </div>
               </div>
             </div>
@@ -249,7 +262,7 @@
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Total Savings</div>
-                <div class="stat-value text-2xl" :class="{ 'text-emerald-600': results.totalSavings > 0 }">${{ results.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-value text-2xl" :class="{ 'text-emerald-600': displayedStats?.totalSavings > 0 }">${{ displayedStats?.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
                 <div class="stat-desc">Compared to standard loan</div>
               </div>
             </div>
@@ -315,6 +328,7 @@ import * as XLSX from 'xlsx'
 
 const STORAGE_KEY = 'mortgage-calculator-state'
 const showResetModal = ref(false)
+const selectedScenarioId = ref(null)
 
 const formData = ref({
   loanAmount: 500000,
@@ -352,18 +366,35 @@ const scenarios = ref([])
 const currentScenarioName = ref('')
 const showSaveScenarioModal = ref(false)
 
+const displayedStats = computed(() => {
+  if (!selectedScenarioId.value) {
+    return results.value
+  }
+  const selectedScenario = scenarios.value.find(s => s.id === selectedScenarioId.value)
+  return selectedScenario?.data.results
+})
+
 const saveCurrentScenario = () => {
   if (!currentScenarioName.value.trim()) return
   
   // Calculate mortgage to ensure we have the latest data
   calculateMortgage()
   
+  // Calculate standard loan total for savings comparison
+  const monthlyRate = formData.value.interestRate / 1200
+  const numberOfPayments = formData.value.loanTerm * 12
+  const standardMonthlyPayment = -PMT(monthlyRate, numberOfPayments, formData.value.loanAmount)
+  const standardLoanTotal = standardMonthlyPayment * numberOfPayments
+  
   const scenario = {
     id: Date.now(),
     name: currentScenarioName.value,
     data: {
       formData: JSON.parse(JSON.stringify(formData.value)),
-      results: JSON.parse(JSON.stringify(results.value)),
+      results: {
+        ...results.value,
+        totalSavings: standardLoanTotal - results.value.totalRepayment
+      },
       chartData: JSON.parse(JSON.stringify(chartData.value))
     }
   }
@@ -371,6 +402,9 @@ const saveCurrentScenario = () => {
   scenarios.value.push(scenario)
   showSaveScenarioModal.value = false
   currentScenarioName.value = ''
+  
+  // Save to localStorage
+  saveToLocalStorage()
 }
 
 const deleteScenario = (id) => {
@@ -926,7 +960,7 @@ onMounted(() => {
 })
 
 // Save to localStorage whenever important data changes
-watch([formData, results, chartData, scenarios], () => {
+const saveToLocalStorage = () => {
   if (results.value) {
     const state = {
       formData: formData.value,
@@ -936,6 +970,11 @@ watch([formData, results, chartData, scenarios], () => {
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }
+}
+
+// Save to localStorage whenever important data changes
+watch([formData, results, chartData, scenarios], () => {
+  saveToLocalStorage()
 }, { deep: true })
 
 const confirmReset = () => {
