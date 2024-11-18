@@ -359,17 +359,20 @@ const clearScenarios = () => {
 
 // Pass all chart data through the computed property
 const chartDataWithScenarios = computed(() => {
-  if (!chartData.value) return null
+  if (!chartData.value) return null;
   return {
     ...chartData.value,
+    loanAmount: formData.value.loanAmount,
+    totalInterest: results.value.totalInterest,
+    totalFees: results.value.totalFees,
     scenarioBalances: scenarios.value.reduce((acc, scenario) => {
-      acc[scenario.name] = scenario.data.chartData.balances
-      return acc
+      acc[scenario.name] = scenario.data.chartData.balances;
+      return acc;
     }, {}),
     interestRate: formData.value.interestRate,
     minimumRepayment: minimumRepayment.value
-  }
-})
+  };
+});
 
 // Add a new empty additional payment
 const addAdditionalPayment = () => {

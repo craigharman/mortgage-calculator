@@ -3,7 +3,16 @@
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
         <h3 class="card-title">Payment Breakdown</h3>
-        <DoughnutChart :data="paymentBreakdownData" :options="doughnutOptions" />
+        <div class="relative h-64">
+          <DoughnutChart 
+            v-if="hasData"
+            :data="paymentBreakdownData" 
+            :options="doughnutOptions"
+          />
+          <div v-else class="text-center text-gray-500 mt-4">
+            Enter loan details and click calculate to see the breakdown
+          </div>
+        </div>
       </div>
     </div>
     <div class="card bg-base-100 shadow-xl">
@@ -29,6 +38,9 @@ const props = defineProps({
     type: Object,
     required: true,
     default: () => ({
+      loanAmount: 0,
+      totalInterest: 0,
+      totalFees: 0,
       balances: [],
       standardBalances: [],
       timeLabels: [],
@@ -37,6 +49,37 @@ const props = defineProps({
       minimumRepayment: 0
     })
   }
+});
+
+const hasData = computed(() => {
+  return props.chartData && 
+         (props.chartData.loanAmount > 0 || 
+          props.chartData.totalInterest > 0 || 
+          props.chartData.totalFees > 0);
+});
+
+const paymentBreakdownData = computed(() => {
+  const loanAmount = Number(props.chartData.loanAmount) || 0;
+  const totalInterest = Number(props.chartData.totalInterest) || 0;
+  const totalFees = Number(props.chartData.totalFees) || 0;
+
+  return {
+    labels: ['Principal', 'Interest', 'Fees'],
+    datasets: [{
+      data: [loanAmount, totalInterest, totalFees],
+      backgroundColor: [
+        'rgba(16, 185, 129, 0.7)',
+        'rgba(245, 158, 11, 0.7)',
+        'rgba(79, 70, 229, 0.7)'
+      ],
+      borderColor: [
+        'rgba(16, 185, 129, 1)',
+        'rgba(245, 158, 11, 1)',
+        'rgba(79, 70, 229, 1)'
+      ],
+      borderWidth: 1
+    }]
+  };
 });
 
 const baseOptions = {
@@ -96,7 +139,6 @@ const baseOptions = {
   }
 }
 
-// Professional color palette with vibrant but corporate colors
 const colors = {
   standard: {
     line: 'rgba(79, 70, 229, 0.7)',  // indigo-600
@@ -115,52 +157,25 @@ const colors = {
   ]
 }
 
-const paymentBreakdownData = computed(() => ({
-  labels: ['Principal', 'Interest', 'Fees'],
-  datasets: [{
-    data: [
-      props.chartData.loanAmount,
-      props.chartData.totalInterest,
-      props.chartData.totalFees
-    ],
-    backgroundColor: [
-      'rgba(16, 185, 129, 0.7)',  // emerald-500
-      'rgba(245, 158, 11, 0.7)',  // amber-500
-      'rgba(79, 70, 229, 0.7)'    // indigo-600
-    ],
-    borderColor: [
-      'rgba(16, 185, 129, 1)',    // emerald-500
-      'rgba(245, 158, 11, 1)',    // amber-500
-      'rgba(79, 70, 229, 1)'      // indigo-600
-    ],
-    borderWidth: 1
-  }]
-}));
-
 const balanceChartData = computed(() => {
-  // Generate full timeline of 30 years
   const fullTimeLabels = ['Start']
   for (let i = 1; i <= Math.max(30, Math.ceil(props.chartData.timeLabels.length / 12)); i++) {
     fullTimeLabels.push(`Year ${i}`)
   }
 
-  // Extend balances arrays to match full timeline
   const extendedBalances = [...props.chartData.balances]
   const extendedStandardBalances = [...props.chartData.standardBalances]
   
-  // Fill remaining years with zero for accelerated payoff
   while (extendedBalances.length < fullTimeLabels.length) {
     extendedBalances.push(0)
   }
 
-  // Continue standard loan amortization until 30 years
   if (extendedStandardBalances.length < fullTimeLabels.length) {
     const monthlyRate = (props.chartData.interestRate / 100) / 12
     const monthlyPayment = props.chartData.minimumRepayment
     let balance = extendedStandardBalances[extendedStandardBalances.length - 1]
     
     while (extendedStandardBalances.length < fullTimeLabels.length) {
-      // Calculate 12 months of payments to get to next year
       for (let i = 0; i < 12 && balance > 0; i++) {
         const interestPayment = balance * monthlyRate
         const principalPayment = monthlyPayment - interestPayment
@@ -170,13 +185,12 @@ const balanceChartData = computed(() => {
     }
   }
 
-  // Extend scenario balances
   const extendedScenarioBalances = {}
   if (props.chartData.scenarioBalances) {
     Object.entries(props.chartData.scenarioBalances).forEach(([key, balances]) => {
       const extended = [...balances]
       while (extended.length < fullTimeLabels.length) {
-        extended.push(0)  // Scenarios also pay off early
+        extended.push(0)  
       }
       extendedScenarioBalances[key] = extended
     })
@@ -201,7 +215,6 @@ const balanceChartData = computed(() => {
     }
   ]
 
-  // Add scenario datasets
   if (props.chartData.scenarioBalances) {
     Object.entries(extendedScenarioBalances).forEach(([key, balances], index) => {
       datasets.push({
@@ -215,9 +228,7 @@ const balanceChartData = computed(() => {
     })
   }
 
-  // Add payment events if they exist
   if (props.chartData.paymentEvents && props.chartData.paymentEvents.length > 0) {
-    // Create array for payment events
     const eventPoints = new Array(fullTimeLabels.length).fill(null)
     const eventLabels = new Array(fullTimeLabels.length).fill(null)
     
@@ -232,13 +243,13 @@ const balanceChartData = computed(() => {
     datasets.push({
       label: 'Payment Events',
       data: eventPoints,
-      borderColor: 'rgba(239, 68, 68, 1)', // red-500
+      borderColor: 'rgba(239, 68, 68, 1)',
       backgroundColor: 'rgba(239, 68, 68, 1)',
       pointStyle: 'circle',
       pointRadius: 6,
       pointHoverRadius: 8,
       showLine: false,
-      customLabels: eventLabels // Store labels for tooltip
+      customLabels: eventLabels 
     })
   }
 
@@ -257,7 +268,6 @@ const balanceChartOptions = {
       callbacks: {
         label: function(context) {
           const dataset = context.dataset
-          // Check if this is a payment event point
           if (dataset.label === 'Payment Events' && dataset.customLabels) {
             const label = dataset.customLabels[context.dataIndex]
             if (label) return label
@@ -300,23 +310,43 @@ const balanceChartOptions = {
 }
 
 const doughnutOptions = {
-  ...baseOptions,
+  responsive: true,
+  maintainAspectRatio: false,
   plugins: {
-    ...baseOptions.plugins,
     legend: {
-      position: 'bottom'
+      position: 'bottom',
+      labels: {
+        padding: 20,
+        usePointStyle: true,
+        font: {
+          size: 12
+        }
+      }
     },
     tooltip: {
+      backgroundColor: 'rgba(31, 41, 55, 0.9)',
+      titleColor: 'white',
+      bodyColor: 'white',
+      borderColor: 'rgba(107, 114, 128, 0.5)',
+      borderWidth: 1,
+      padding: 12,
+      boxPadding: 6,
+      usePointStyle: true,
       callbacks: {
         label: function(context) {
-          if (!context.raw && context.raw !== 0) return '';
           const value = context.raw;
-          const total = context.dataset.data.reduce((a, b) => a + b, 0);
+          const total = context.dataset.data.reduce((acc, curr) => acc + curr, 0);
           const percentage = ((value / total) * 100).toFixed(1);
-          return `${context.label}: $${value.toLocaleString()} (${percentage}%)`;
+          const formattedValue = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(value);
+          return `${context.label}: ${formattedValue} (${percentage}%)`;
         }
       }
     }
   }
-};
+}
 </script>
