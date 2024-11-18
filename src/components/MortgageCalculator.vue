@@ -275,32 +275,32 @@
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <!-- Loan Settings -->
             <div class="card bg-base-100 shadow-xl">
-              <div class="card-body">
-                <h4 class="card-title text-gray-800">Loan Settings</h4>
-                <div class="space-y-2">
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Loan Amount:</span>
-                    <span class="text-gray-800">${{ selectedScenario.data.formData.loanAmount?.toLocaleString() }}</span>
+              <div class="card-body p-6">
+                <h4 class="card-title text-gray-800 text-lg mb-4">Loan Settings</h4>
+                <div class="space-y-3">
+                  <div class="grid grid-cols-2 items-center">
+                    <span class="text-gray-600 text-sm">Loan Amount</span>
+                    <span class="text-gray-800 text-right font-medium">${{ selectedScenario.data.formData.loanAmount?.toLocaleString() }}</span>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Interest Rate:</span>
-                    <span class="text-gray-800">{{ selectedScenario.data.formData.interestRate }}%</span>
+                  <div class="grid grid-cols-2 items-center">
+                    <span class="text-gray-600 text-sm">Interest Rate</span>
+                    <span class="text-gray-800 text-right font-medium">{{ selectedScenario.data.formData.interestRate }}%</span>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Loan Term:</span>
-                    <span class="text-gray-800">{{ selectedScenario.data.formData.loanTerm }} years</span>
+                  <div class="grid grid-cols-2 items-center">
+                    <span class="text-gray-600 text-sm">Loan Term</span>
+                    <span class="text-gray-800 text-right font-medium">{{ selectedScenario.data.formData.loanTerm }} years</span>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Repayment Frequency:</span>
-                    <span class="text-gray-800">{{ selectedScenario.data.formData.repaymentFrequency }}</span>
+                  <div class="grid grid-cols-2 items-center">
+                    <span class="text-gray-600 text-sm">Repayment Frequency</span>
+                    <span class="text-gray-800 text-right font-medium">{{ selectedScenario.data.formData.repaymentFrequency }}</span>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Fee Amount:</span>
-                    <span class="text-gray-800">${{ selectedScenario.data.formData.feeAmount?.toLocaleString() }}</span>
+                  <div class="grid grid-cols-2 items-center">
+                    <span class="text-gray-600 text-sm">Fee Amount</span>
+                    <span class="text-gray-800 text-right font-medium">${{ selectedScenario.data.formData.feeAmount?.toLocaleString() }}</span>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Fee Frequency:</span>
-                    <span class="text-gray-800">{{ selectedScenario.data.formData.feeFrequency }}</span>
+                  <div class="grid grid-cols-2 items-center">
+                    <span class="text-gray-600 text-sm">Fee Frequency</span>
+                    <span class="text-gray-800 text-right font-medium">{{ selectedScenario.data.formData.feeFrequency }}</span>
                   </div>
                 </div>
               </div>
@@ -308,17 +308,17 @@
 
             <!-- Additional Payments -->
             <div class="card bg-base-100 shadow-xl">
-              <div class="card-body">
-                <h4 class="card-title text-gray-800">Additional Payments</h4>
-                <div class="space-y-2">
-                  <div v-if="!selectedScenario.data.formData.additionalPayments?.length" class="text-gray-600">
+              <div class="card-body p-6">
+                <h4 class="card-title text-gray-800 text-lg mb-4">Additional Payments</h4>
+                <div class="space-y-3">
+                  <div v-if="!selectedScenario.data.formData.additionalPayments?.length" class="text-gray-600 text-sm italic">
                     No additional payments configured
                   </div>
-                  <div v-else v-for="(payment, index) in selectedScenario.data.formData.additionalPayments" :key="index" class="flex justify-between items-center">
-                    <span class="text-gray-600">
-                      {{ formatMonthYear(payment.month, payment.year) }}:
+                  <div v-else v-for="(payment, index) in selectedScenario.data.formData.additionalPayments" :key="index" class="grid grid-cols-2 items-center">
+                    <span class="text-gray-600 text-sm">
+                      {{ formatMonthYear(payment.month, payment.year) }}
                     </span>
-                    <span class="text-gray-800">${{ payment.amount?.toLocaleString() }}</span>
+                    <span class="text-gray-800 text-right font-medium">${{ payment.amount?.toLocaleString() }}</span>
                   </div>
                 </div>
               </div>
@@ -326,17 +326,17 @@
 
             <!-- Repayment Changes -->
             <div class="card bg-base-100 shadow-xl">
-              <div class="card-body">
-                <h4 class="card-title text-gray-800">Repayment Changes</h4>
-                <div class="space-y-2">
-                  <div v-if="!selectedScenario.data.formData.repaymentChanges?.length" class="text-gray-600">
+              <div class="card-body p-6">
+                <h4 class="card-title text-gray-800 text-lg mb-4">Repayment Changes</h4>
+                <div class="space-y-3">
+                  <div v-if="!selectedScenario.data.formData.repaymentChanges?.length" class="text-gray-600 text-sm italic">
                     No repayment changes configured
                   </div>
-                  <div v-else v-for="(change, index) in selectedScenario.data.formData.repaymentChanges" :key="index" class="flex justify-between items-center">
-                    <span class="text-gray-600">
-                      {{ formatMonthYear(change.month, change.year) }}:
+                  <div v-else v-for="(change, index) in selectedScenario.data.formData.repaymentChanges" :key="index" class="grid grid-cols-2 items-center">
+                    <span class="text-gray-600 text-sm">
+                      {{ formatMonthYear(change.month, change.year) }}
                     </span>
-                    <span class="text-gray-800">${{ change.amount?.toLocaleString() }}</span>
+                    <span class="text-gray-800 text-right font-medium">${{ change.amount?.toLocaleString() }}</span>
                   </div>
                 </div>
               </div>
