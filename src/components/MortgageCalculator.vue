@@ -591,12 +591,6 @@ const calculateMortgage = () => {
     minimumRepayment.value = baseMonthlyPayment
   }
 
-  console.log('Initial values:')
-console.log('Principal:', principal)
-console.log('Monthly Rate:', monthlyRate)
-console.log('Base Monthly Payment:', baseMonthlyPayment)
-console.log('Total Months:', totalMonths)
-
   const calculateBalances = () => {
     let balance = principal
     let standardBalance = principal
@@ -651,13 +645,6 @@ console.log('Total Months:', totalMonths)
         
         standardBalance = Math.max(0, standardBalance - standardPrincipalPayment)
 
-        if (month % 12 === 0) {
-          console.log(`\nYear ${month/12} Standard Loan:`)
-          console.log('Standard Balance:', standardBalance)
-          console.log('Standard Interest Payment:', standardInterestPayment)
-          console.log('Standard Principal Payment:', standardPrincipalPayment)
-          console.log('Standard Monthly Payment:', standardMonthlyPayment)
-        }
       }
 
       // Check if there's a repayment change for this month
@@ -731,9 +718,6 @@ console.log('Total Months:', totalMonths)
       }
     }
 
-    console.log('\nFinal values:')
-console.log('Standard Balances:', standardBalances)
-console.log('Time Labels:', timeLabels)
 
     return {
       balances,
