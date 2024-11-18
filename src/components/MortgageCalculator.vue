@@ -91,6 +91,69 @@
             </select>
           </div>
 
+          <!-- Additional Payments Section -->
+          <div class="divider">Additional Payments</div>
+          
+          <div v-for="(payment, index) in formData.additionalPayments" :key="index" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end border border-base-300 rounded-lg p-4">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Amount ($)</span>
+              </label>
+              <input
+                v-model.number="payment.amount"
+                type="number"
+                min="0"
+                step="100"
+                class="input input-bordered"
+                required
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Month</span>
+              </label>
+              <select v-model="payment.month" class="select select-bordered" required>
+                <option v-for="(month, index) in months" :key="month" :value="index + 1">
+                  {{ month }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Year</span>
+              </label>
+              <select v-model="payment.year" class="select select-bordered" required>
+                <option v-for="year in years" :key="year" :value="year">
+                  {{ year }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-control">
+              <button 
+                type="button" 
+                class="btn btn-error" 
+                @click="removeAdditionalPayment(index)"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+
+          <div class="form-control">
+            <button 
+              type="button" 
+              class="btn btn-secondary" 
+              @click="addAdditionalPayment"
+            >
+              Add Additional Payment
+            </button>
+          </div>
+
+          <div class="divider"></div>
+
           <div class="form-control mt-6">
             <button type="submit" class="btn btn-primary">Calculate</button>
           </div>
@@ -109,6 +172,9 @@
             <div class="stat min-w-[200px] flex-1">
               <div class="stat-title">Repayment Date</div>
               <div class="stat-value text-2xl">{{ results.repaymentDate }}</div>
+              <div class="stat-desc text-success" v-if="results.monthsSaved > 0">
+                {{ results.monthsSaved }} months earlier!
+              </div>
             </div>
 
             <div class="stat min-w-[200px] flex-1">
@@ -133,7 +199,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const formData = ref({
   loanAmount: 500000,
@@ -141,10 +207,36 @@ const formData = ref({
   interestRate: 5.5,
   repaymentFrequency: 'monthly',
   feeAmount: 10,
-  feeFrequency: 'monthly'
+  feeFrequency: 'monthly',
+  additionalPayments: []
 })
 
-const results = ref(null)
+// Add a new empty additional payment
+const addAdditionalPayment = () => {
+  formData.value.additionalPayments.push({
+    amount: 0,
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear()
+  })
+}
+
+// Remove an additional payment by index
+const removeAdditionalPayment = (index) => {
+  formData.value.additionalPayments.splice(index, 1)
+}
+
+// Generate array of months for select
+const months = computed(() => [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+])
+
+// Generate array of years starting from current year
+const years = computed(() => {
+  const currentYear = new Date().getFullYear()
+  const endYear = currentYear + formData.value.loanTerm
+  return Array.from({length: endYear - currentYear + 1}, (_, i) => currentYear + i)
+})
 
 const calculateMortgage = () => {
   // Convert annual interest rate to monthly
@@ -155,60 +247,99 @@ const calculateMortgage = () => {
   let monthlyFees = 0
   switch (formData.value.feeFrequency) {
     case 'weekly':
-      monthlyFees = formData.value.feeAmount * 52 / 12 // Convert weekly to monthly
+      monthlyFees = formData.value.feeAmount * 52 / 12
       break
     case 'monthly':
       monthlyFees = formData.value.feeAmount
       break
     case 'quarterly':
-      monthlyFees = formData.value.feeAmount / 3 // Convert quarterly to monthly
+      monthlyFees = formData.value.feeAmount / 3
       break
     case 'annually':
-      monthlyFees = formData.value.feeAmount / 12 // Convert annual to monthly
+      monthlyFees = formData.value.feeAmount / 12
       break
     case 'once':
-      // Add once-off fee to the loan amount
       formData.value.loanAmount += formData.value.feeAmount
       break
   }
 
-  // Calculate base monthly payment using the mortgage payment formula
-  // P = L[c(1 + c)^n]/[(1 + c)^n - 1]
-  // where: P = Payment, L = Loan amount, c = monthly interest rate, n = total number of months
-  let monthlyPayment = (
+  // Sort additional payments by date
+  const sortedPayments = [...formData.value.additionalPayments]
+    .sort((a, b) => {
+      const dateA = new Date(a.year, a.month - 1)
+      const dateB = new Date(b.year, b.month - 1)
+      return dateA - dateB
+    })
+
+  // Calculate loan amortization with additional payments
+  let remainingBalance = formData.value.loanAmount
+  let totalInterestPaid = 0
+  let monthsToRepay = 0
+  let actualMonthlyPayment = (
     formData.value.loanAmount *
     (monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) /
     (Math.pow(1 + monthlyRate, totalMonths) - 1)
-  )
+  ) + monthlyFees
 
-  // Add recurring fees to the monthly payment
-  monthlyPayment += monthlyFees
+  const startDate = new Date()
+  let currentDate = new Date(startDate)
+  let finalRepaymentDate = new Date(startDate)
 
-  // Adjust payment based on frequency
-  let minimumRepayment = monthlyPayment
-  if (formData.value.repaymentFrequency === 'fortnightly') {
-    minimumRepayment = (monthlyPayment * 12) / 26
-  } else if (formData.value.repaymentFrequency === 'weekly') {
-    minimumRepayment = (monthlyPayment * 12) / 52
+  // Simulate monthly payments until loan is paid off
+  while (remainingBalance > 0 && monthsToRepay < totalMonths) {
+    // Calculate interest for this month
+    const interestThisMonth = remainingBalance * monthlyRate
+    totalInterestPaid += interestThisMonth
+
+    // Apply regular payment
+    const principalPayment = actualMonthlyPayment - monthlyFees - interestThisMonth
+    remainingBalance -= principalPayment
+
+    // Check for additional payments in this month
+    const paymentsThisMonth = sortedPayments.filter(payment => 
+      payment.year === currentDate.getFullYear() && 
+      payment.month === currentDate.getMonth() + 1
+    )
+
+    // Apply additional payments
+    for (const payment of paymentsThisMonth) {
+      remainingBalance -= payment.amount
+      if (remainingBalance < 0) remainingBalance = 0
+    }
+
+    monthsToRepay++
+    currentDate.setMonth(currentDate.getMonth() + 1)
+    
+    if (remainingBalance <= 0) {
+      finalRepaymentDate = new Date(currentDate)
+    }
   }
 
-  // Calculate total cost including fees
-  const totalMonthlyFees = monthlyFees * totalMonths
+  // Calculate total fees
+  const totalMonthlyFees = monthlyFees * monthsToRepay
   const totalOnceOffFees = formData.value.feeFrequency === 'once' ? formData.value.feeAmount : 0
-  const totalPayments = (monthlyPayment * totalMonths)
   const totalFees = totalMonthlyFees + totalOnceOffFees
-  const totalInterest = totalPayments - formData.value.loanAmount - totalFees
 
-  // Calculate repayment date
-  const today = new Date()
-  const repaymentDate = new Date(today.getFullYear() + formData.value.loanTerm, today.getMonth(), 1)
+  // Adjust payment based on frequency
+  let minimumRepayment = actualMonthlyPayment
+  if (formData.value.repaymentFrequency === 'fortnightly') {
+    minimumRepayment = (actualMonthlyPayment * 12) / 26
+  } else if (formData.value.repaymentFrequency === 'weekly') {
+    minimumRepayment = (actualMonthlyPayment * 12) / 52
+  }
+
+  const years = Math.floor(monthsToRepay / 12)
+  const months = monthsToRepay % 12
 
   results.value = {
     minimumRepayment,
-    repaymentDate: repaymentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-    timeToRepay: `${formData.value.loanTerm} years`,
-    totalInterest,
-    totalFees
+    repaymentDate: finalRepaymentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    timeToRepay: `${years} years${months ? ` ${months} months` : ''}`,
+    totalInterest: totalInterestPaid,
+    totalFees,
+    monthsSaved: totalMonths - monthsToRepay
   }
 }
+
+const results = ref(null)
 </script>
