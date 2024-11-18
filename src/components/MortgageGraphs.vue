@@ -61,6 +61,7 @@ const balanceChartData = computed(() => ({
       backgroundColor: 'rgba(37, 99, 235, 0.1)',
       fill: true,
       tension: 0.4,
+      spanGaps: true, // This will connect points even with gaps in data
     },
     {
       label: 'Standard Loan',
@@ -70,6 +71,7 @@ const balanceChartData = computed(() => ({
       fill: true,
       tension: 0.4,
       borderDash: [5, 5], // Make it a dashed line
+      spanGaps: true, // This will connect points even with gaps in data
     },
     {
       label: 'Payment Events',

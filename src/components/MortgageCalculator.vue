@@ -456,14 +456,27 @@ const calculateMortgage = () => {
 
     // Track balance for graph (every 12 months or at final payment)
     if (monthsToRepay % 12 === 0 || remainingBalance <= 0 || standardBalance <= 0) {
-      balances.push(Math.max(0, remainingBalance))
-      standardBalances.push(Math.max(0, standardBalance))
       const yearLabel = `Year ${Math.floor(monthsToRepay / 12)}`
-      timeLabels.push(
-        yearLabel + 
-        (remainingBalance <= 0 && standardBalance > 0 ? ' (Your loan paid)' :
-         standardBalance <= 0 ? ' (Standard loan paid)' : '')
-      )
+      
+      // For your loan: include balance if it's positive or if it just reached zero
+      if (remainingBalance > 0 || (remainingBalance <= 0 && balances[balances.length - 1] > 0)) {
+        balances.push(Math.max(0, remainingBalance))
+      }
+      
+      // For standard loan: include balance if it's positive or if it just reached zero
+      if (standardBalance > 0 || (standardBalance <= 0 && standardBalances[standardBalances.length - 1] > 0)) {
+        standardBalances.push(Math.max(0, standardBalance))
+      }
+      
+      // Only add time label if we added at least one balance
+      if (remainingBalance > 0 || standardBalance > 0 || 
+          balances[balances.length - 1] === 0 || standardBalances[standardBalances.length - 1] === 0) {
+        timeLabels.push(
+          yearLabel + 
+          (remainingBalance <= 0 && standardBalance > 0 ? ' (Your loan paid)' :
+           standardBalance <= 0 ? ' (Standard loan paid)' : '')
+        )
+      }
     }
   }
 
