@@ -168,8 +168,8 @@
                 class="input input-bordered"
                 required
               />
-              <label class="label" v-if="minMonthlyPayment && change.amount < displayMinPayment">
-                <span class="label-text-alt text-error">Minimum: ${{ displayMinPayment.toFixed(2) }}/{{ formData.value.repaymentFrequency === 'monthly' ? 'month' : formData.value.repaymentFrequency.slice(0, -2) }}</span>
+              <label class="label" v-if="displayMinPayment !== null && change.amount < displayMinPayment">
+                <span class="label-text-alt text-error">Minimum: ${{ displayMinPayment.toFixed(2) }}/{{ formData.repaymentFrequency === 'monthly' ? 'month' : formData.repaymentFrequency.slice(0, -2) }}</span>
               </label>
             </div>
 
@@ -257,6 +257,10 @@
             </div>
           </div>
         </div>
+
+         <!-- Graphs Section -->
+        <MortgageGraphs v-if="results" :chartData="chartData" />
+      
       </div>
     </div>
   </div>
@@ -264,6 +268,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import MortgageGraphs from './MortgageGraphs.vue'
 
 const formData = ref({
   loanAmount: 500000,
@@ -320,14 +325,19 @@ const years = computed(() => {
 })
 
 const displayMinPayment = computed(() => {
+  if (!minMonthlyPayment.value || !formData.value) return null;
+  
   if (formData.value.repaymentFrequency === 'monthly') {
-    return minMonthlyPayment.value
+    return minMonthlyPayment.value;
   } else if (formData.value.repaymentFrequency === 'fortnightly') {
-    return (minMonthlyPayment.value * 12) / 26
+    return (minMonthlyPayment.value * 12) / 26;
   } else if (formData.value.repaymentFrequency === 'weekly') {
-    return (minMonthlyPayment.value * 12) / 52
+    return (minMonthlyPayment.value * 12) / 52;
   }
-})
+  return minMonthlyPayment.value; // default to monthly if frequency not recognized
+});
+
+const chartData = ref(null)
 
 const calculateMortgage = () => {
   // Convert annual interest rate to monthly
@@ -397,6 +407,10 @@ const calculateMortgage = () => {
     }
   }
 
+  // For tracking balance over time
+  const balances = [formData.value.loanAmount]
+  const timeLabels = ['Start']
+
   // Calculate loan amortization with additional payments and repayment changes
   let remainingBalance = formData.value.loanAmount
   let totalInterestPaid = 0
@@ -444,12 +458,27 @@ const calculateMortgage = () => {
     if (remainingBalance <= 0) {
       finalRepaymentDate = new Date(currentDate)
     }
+
+    // Track balance for graph (every 12 months)
+    if (monthsToRepay % 12 === 0 || remainingBalance <= 0) {
+      balances.push(Math.max(0, remainingBalance))
+      timeLabels.push(`Year ${Math.floor(monthsToRepay / 12)}${remainingBalance <= 0 ? ' (Paid)' : ''}`)
+    }
   }
 
   // Calculate total fees
   const totalMonthlyFees = monthlyFees * monthsToRepay
   const totalOnceOffFees = formData.value.feeFrequency === 'once' ? formData.value.feeAmount : 0
   const totalFees = totalMonthlyFees + totalOnceOffFees
+
+  // Update chart data
+  chartData.value = {
+    loanAmount: formData.value.loanAmount,
+    totalInterest: totalInterestPaid,
+    totalFees,
+    balances,
+    timeLabels
+  }
 
   // Adjust initial payment based on frequency for display
   let minimumRepayment = baseMonthlyPayment
