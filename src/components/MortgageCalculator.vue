@@ -409,10 +409,18 @@ const saveCurrentScenario = () => {
 
 const deleteScenario = (id) => {
   scenarios.value = scenarios.value.filter(s => s.id !== id)
+  // If we're deleting the currently selected scenario, reset to current
+  if (selectedScenarioId.value === id) {
+    selectedScenarioId.value = null
+  }
+  // Save to localStorage
+  saveToLocalStorage()
 }
 
 const clearScenarios = () => {
   scenarios.value = []
+  selectedScenarioId.value = null
+  saveToLocalStorage()
 }
 
 // Pass all chart data through the computed property
