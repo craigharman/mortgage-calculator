@@ -357,12 +357,17 @@ const clearScenarios = () => {
   scenarios.value = []
 }
 
-// Pass scenarios to chart data
+// Pass all chart data through the computed property
 const chartDataWithScenarios = computed(() => {
   if (!chartData.value) return null
   return {
     ...chartData.value,
-    scenarios: scenarios.value
+    scenarioBalances: scenarios.value.reduce((acc, scenario) => {
+      acc[scenario.name] = scenario.data.chartData.balances
+      return acc
+    }, {}),
+    interestRate: formData.value.interestRate,
+    minimumRepayment: minimumRepayment.value
   }
 })
 
@@ -604,18 +609,28 @@ const calculateMortgage = () => {
     let actualMonthsToRepay = maxMonths
     let finalRepaymentDate = null
 
-    while ((remainingBalance > 0.01 || standardBalance > 0.01) && monthsToRepay <= maxMonths) {
+    // Calculate standard loan separately first
+    for (let month = 1; month <= maxMonths; month++) {
+      const standardInterestThisMonth = standardBalance * monthlyRate
+      const standardPrincipalPayment = baseMonthlyPayment - standardInterestThisMonth
+      standardBalance = Math.max(0, standardBalance - standardPrincipalPayment)
+      standardTotalInterestPaid += standardInterestThisMonth
+
+      if (month % 12 === 0 || standardBalance <= 0.01) {
+        standardBalances.push(Math.max(0, standardBalance))
+      }
+    }
+
+    // Reset standard balance for the main calculation loop
+    standardBalance = formData.value.loanAmount
+
+    // Now calculate the accelerated repayment
+    while (remainingBalance > 0.01 && monthsToRepay <= maxMonths) {
       monthsToRepay++
       
-      // Calculate interest for this month
-      const monthlyInterest = formData.value.interestRate / 100 / 12
-      
-      // Calculate and apply interest
-      const interestThisMonth = remainingBalance * monthlyInterest
-      const standardInterestThisMonth = standardBalance * monthlyInterest
-      
+      // Calculate and apply interest for accelerated repayment
+      const interestThisMonth = remainingBalance * monthlyRate
       totalInterestPaid += interestThisMonth
-      standardTotalInterestPaid += standardInterestThisMonth
 
       // Check for repayment change this month
       const currentMonth = monthsToRepay % 12 || 12
@@ -624,6 +639,14 @@ const calculateMortgage = () => {
       const repaymentChange = formData.value.repaymentChanges.find(
         change => {
           const changeStartMonth = (change.year - startDate.getFullYear()) * 12 + change.month - (startDate.getMonth() + 1)
+          const isChangeMonth = monthsToRepay === changeStartMonth + 1
+          if (isChangeMonth) {
+            paymentEvents.push({
+              month: monthsToRepay,
+              amount: change.amount,
+              type: 'repaymentChange'
+            })
+          }
           return monthsToRepay > changeStartMonth
         }
       )
@@ -631,18 +654,17 @@ const calculateMortgage = () => {
       // Use changed repayment amount if applicable
       currentRepayment = repaymentChange ? repaymentChange.amount : minimumRepayment.value
 
-      // Calculate and apply principal payment
+      // Calculate and apply principal payment for accelerated repayment
       const principalPayment = currentRepayment - interestThisMonth
-      const standardPrincipalPayment = minimumRepayment.value - standardInterestThisMonth
-
-      // Apply payments
       remainingBalance = Math.max(0, remainingBalance - principalPayment)
-      standardBalance = Math.max(0, standardBalance - standardPrincipalPayment)
 
       // Check for additional payment this month
-      const additionalPayment = formData.value.additionalPayments.find(
-        payment => payment.month === currentMonth && payment.year === currentYear
-      )
+      const additionalPayment = formData.value.additionalPayments.find(payment => {
+        const paymentDate = new Date(startDate)
+        paymentDate.setMonth(startDate.getMonth() + monthsToRepay - 1)
+        return payment.month === paymentDate.getMonth() + 1 && payment.year === paymentDate.getFullYear()
+      })
+
       if (additionalPayment) {
         remainingBalance = Math.max(0, remainingBalance - additionalPayment.amount)
         paymentEvents.push({
@@ -657,33 +679,15 @@ const calculateMortgage = () => {
         actualMonthsToRepay = monthsToRepay
         finalRepaymentDate = new Date(startDate)
         finalRepaymentDate.setMonth(startDate.getMonth() + monthsToRepay)
-        break
       }
 
       // Track balance for graph (every 12 months or at final payment)
       if (monthsToRepay % 12 === 0 || remainingBalance <= 0.01) {
         balances.push(Math.max(0, remainingBalance))
-        standardBalances.push(Math.max(0, standardBalance))
         const yearLabel = Math.floor(monthsToRepay / 12)
         timeLabels.push(yearLabel === 0 ? 'Start' : `Year ${yearLabel}`)
       }
     }
-
-    // If we didn't find a final repayment date, use the maximum term
-    if (!finalRepaymentDate) {
-      finalRepaymentDate = new Date(startDate)
-      finalRepaymentDate.setMonth(startDate.getMonth() + maxMonths)
-      actualMonthsToRepay = maxMonths
-    }
-
-    // Calculate time to repay in years and months
-    const years = Math.floor(actualMonthsToRepay / 12)
-    const remainingMonths = actualMonthsToRepay % 12
-    const timeToRepay = remainingMonths === 0 
-      ? `${years} years` 
-      : years === 0 
-        ? `${remainingMonths} months`
-        : `${years} years and ${remainingMonths} months`
 
     return {
       balances,
@@ -692,7 +696,6 @@ const calculateMortgage = () => {
       paymentEvents,
       actualMonthsToRepay,
       finalRepaymentDate,
-      timeToRepay,
       totalInterestPaid
     }
   }
@@ -704,7 +707,6 @@ const calculateMortgage = () => {
     paymentEvents,
     actualMonthsToRepay,
     finalRepaymentDate,
-    timeToRepay,
     totalInterestPaid
   } = calculateBalances()
 
@@ -713,6 +715,15 @@ const calculateMortgage = () => {
     month: 'long',
     year: 'numeric'
   })
+
+  // Calculate time to repay in years and months
+  const years = Math.floor(actualMonthsToRepay / 12)
+  const remainingMonths = actualMonthsToRepay % 12
+  const timeToRepay = remainingMonths === 0 
+    ? `${years} years` 
+    : years === 0 
+      ? `${remainingMonths} months`
+      : `${years} years and ${remainingMonths} months`
 
   // Calculate total fees
   const totalMonthlyFees = formData.value.feeAmount * actualMonthsToRepay
@@ -737,9 +748,7 @@ const calculateMortgage = () => {
     balances,
     standardBalances,
     timeLabels,
-    paymentEvents,
-    interestRate: formData.value.interestRate,
-    minimumRepayment: minimumRepayment.value
+    paymentEvents
   }
 }
 

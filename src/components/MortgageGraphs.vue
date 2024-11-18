@@ -170,6 +170,18 @@ const balanceChartData = computed(() => {
     }
   }
 
+  // Extend scenario balances
+  const extendedScenarioBalances = {}
+  if (props.chartData.scenarioBalances) {
+    Object.entries(props.chartData.scenarioBalances).forEach(([key, balances]) => {
+      const extended = [...balances]
+      while (extended.length < fullTimeLabels.length) {
+        extended.push(0)  // Scenarios also pay off early
+      }
+      extendedScenarioBalances[key] = extended
+    })
+  }
+
   const datasets = [
     {
       label: 'Standard Loan',
@@ -180,7 +192,7 @@ const balanceChartData = computed(() => {
       tension: 0.4
     },
     {
-      label: 'With Extra Payments',
+      label: 'Current',
       data: extendedBalances,
       borderColor: colors.current.line,
       backgroundColor: colors.current.fill,
@@ -189,13 +201,31 @@ const balanceChartData = computed(() => {
     }
   ]
 
+  // Add scenario datasets
+  if (props.chartData.scenarioBalances) {
+    Object.entries(extendedScenarioBalances).forEach(([key, balances], index) => {
+      datasets.push({
+        label: key,
+        data: balances,
+        borderColor: colors.scenarios[index % colors.scenarios.length].line,
+        backgroundColor: colors.scenarios[index % colors.scenarios.length].fill,
+        fill: true,
+        tension: 0.4
+      })
+    })
+  }
+
   // Add payment events if they exist
   if (props.chartData.paymentEvents && props.chartData.paymentEvents.length > 0) {
+    // Create array for payment events
     const eventPoints = new Array(fullTimeLabels.length).fill(null)
+    const eventLabels = new Array(fullTimeLabels.length).fill(null)
+    
     props.chartData.paymentEvents.forEach(event => {
-      const index = Math.floor(event.month / 12)
-      if (index < eventPoints.length) {
-        eventPoints[index] = extendedBalances[index]
+      const yearIndex = Math.floor(event.month / 12)
+      if (yearIndex < eventPoints.length) {
+        eventPoints[yearIndex] = extendedBalances[yearIndex]
+        eventLabels[yearIndex] = `${event.type === 'repaymentChange' ? 'Repayment Change' : 'Additional Payment'}: $${event.amount.toLocaleString()}`
       }
     })
 
@@ -207,7 +237,8 @@ const balanceChartData = computed(() => {
       pointStyle: 'circle',
       pointRadius: 6,
       pointHoverRadius: 8,
-      showLine: false
+      showLine: false,
+      customLabels: eventLabels // Store labels for tooltip
     })
   }
 
@@ -225,8 +256,14 @@ const balanceChartOptions = {
       ...baseOptions.plugins.tooltip,
       callbacks: {
         label: function(context) {
+          const dataset = context.dataset
+          // Check if this is a payment event point
+          if (dataset.label === 'Payment Events' && dataset.customLabels) {
+            const label = dataset.customLabels[context.dataIndex]
+            if (label) return label
+          }
           if (!context.raw && context.raw !== 0) return ''
-          return `${context.dataset.label}: $${context.raw.toLocaleString()}`
+          return `${dataset.label}: $${context.raw.toLocaleString()}`
         }
       }
     }
