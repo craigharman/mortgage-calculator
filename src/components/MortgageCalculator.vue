@@ -224,27 +224,32 @@
         </form>
 
         <!-- Scenarios -->
-        <div class="flex justify-end gap-2 mb-4" v-if="results">
-      <button class="btn btn-primary" @click="showSaveScenarioModal = true">
-        Save Scenario
-      </button>
-      <button class="btn btn-error" @click="clearScenarios" v-if="scenarios.length > 0">
-        Clear All Scenarios
-      </button>
-    </div>
-
-    <div class="mb-4" v-if="scenarios.length > 0">
-      <h3 class="text-lg font-bold mb-2">Saved Scenarios</h3>
-      <div class="flex flex-wrap gap-2">
-        <div v-for="scenario in scenarios" :key="scenario.id" 
-             class="badge badge-lg gap-2 p-4">
-          <span>{{ scenario.name }}</span>
-          <button class="btn btn-ghost btn-xs" @click="deleteScenario(scenario.id)">
-            ×
+        <div class="flex justify-end gap-2 mb-4">
+          <button class="btn btn-warning" @click="confirmReset">
+            Reset Calculator
           </button>
+          <template v-if="results">
+            <button class="btn btn-primary" @click="showSaveScenarioModal = true">
+              Save Scenario
+            </button>
+            <button class="btn btn-error" @click="clearScenarios" v-if="scenarios.length > 0">
+              Clear All Scenarios
+            </button>
+          </template>
         </div>
-      </div>
-    </div>
+
+        <div class="mb-4" v-if="scenarios.length > 0">
+          <h3 class="text-lg font-bold mb-2">Saved Scenarios</h3>
+          <div class="flex flex-wrap gap-2">
+            <div v-for="scenario in scenarios" :key="scenario.id" 
+                 class="badge badge-lg gap-2 p-4">
+              <span>{{ scenario.name }}</span>
+              <button class="btn btn-ghost btn-xs" @click="deleteScenario(scenario.id)">
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
 
         <!-- Results Section -->
         <div v-if="results" class="mt-8 space-y-4">
@@ -312,12 +317,30 @@
         <button @click="showSaveScenarioModal = false">close</button>
       </form>
     </dialog>
+    <dialog :class="{'modal': true, 'modal-open': showResetModal}">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Reset Calculator</h3>
+        <p>Are you sure you want to reset the calculator? This will clear all saved data and scenarios.</p>
+        <div class="modal-action">
+          <button class="btn" @click="showResetModal = false">Cancel</button>
+          <button class="btn btn-warning" @click="resetCalculator">
+            Reset
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="showResetModal = false">close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import MortgageGraphs from './MortgageGraphs.vue'
+
+const STORAGE_KEY = 'mortgage-calculator-state'
+const showResetModal = ref(false)
 
 const formData = ref({
   loanAmount: 500000,
@@ -611,4 +634,54 @@ const calculateMortgage = () => {
 const results = ref(null)
 const currentDate = ref(new Date())
 const finalRepaymentDate = ref(null)
+
+// Load data from localStorage on mount
+onMounted(() => {
+  const savedState = localStorage.getItem(STORAGE_KEY)
+  if (savedState) {
+    const state = JSON.parse(savedState)
+    formData.value = state.formData
+    results.value = state.results
+    chartData.value = state.chartData
+    scenarios.value = state.scenarios || []
+  }
+})
+
+// Save to localStorage whenever important data changes
+watch([formData, results, chartData, scenarios], () => {
+  if (results.value) {
+    const state = {
+      formData: formData.value,
+      results: results.value,
+      chartData: chartData.value,
+      scenarios: scenarios.value
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  }
+}, { deep: true })
+
+const confirmReset = () => {
+  showResetModal.value = true
+}
+
+const resetCalculator = () => {
+  // Reset all state
+  formData.value = {
+    loanAmount: 500000,
+    loanTerm: 30,
+    interestRate: 5.5,
+    repaymentFrequency: 'monthly',
+    feeAmount: 10,
+    feeFrequency: 'monthly',
+    additionalPayments: [],
+    repaymentChanges: []
+  }
+  results.value = null
+  chartData.value = null
+  scenarios.value = []
+  
+  // Clear localStorage
+  localStorage.removeItem(STORAGE_KEY)
+  showResetModal.value = false
+}
 </script>
