@@ -137,55 +137,39 @@ const balanceChartData = computed(() => {
       borderColor: colors.standard.line,
       backgroundColor: colors.standard.fill,
       fill: true,
-      tension: 0.4,
-      borderDash: [5, 5], // Make it a dashed line
-      spanGaps: true,
+      tension: 0.4
+    },
+    {
+      label: 'With Extra Payments',
+      data: props.chartData.balances,
+      borderColor: colors.current.line,
+      backgroundColor: colors.current.fill,
+      fill: true,
+      tension: 0.4
     }
   ]
 
-  // Add current scenario
-  datasets.push({
-    label: 'Current Scenario',
-    data: props.chartData.balances,
-    borderColor: colors.current.line,
-    backgroundColor: colors.current.fill,
-    fill: true,
-    tension: 0.4,
-    spanGaps: true,
-  })
+  // Add payment events if they exist
+  if (props.chartData.paymentEvents && props.chartData.paymentEvents.length > 0) {
+    const eventPoints = new Array(props.chartData.timeLabels.length).fill(null)
+    props.chartData.paymentEvents.forEach(event => {
+      const index = Math.floor(event.month / 12)
+      if (index < eventPoints.length) {
+        eventPoints[index] = props.chartData.balances[index]
+      }
+    })
 
-  // Add saved scenarios
-  if (props.chartData.scenarios) {
-    props.chartData.scenarios.forEach((scenario, index) => {
-      const colorIndex = index % colors.scenarios.length
-      datasets.push({
-        label: scenario.name,
-        data: scenario.data.chartData.balances,
-        borderColor: colors.scenarios[colorIndex].line,
-        backgroundColor: colors.scenarios[colorIndex].fill,
-        fill: true,
-        tension: 0.4,
-        spanGaps: true,
-      })
+    datasets.push({
+      label: 'Payment Events',
+      data: eventPoints,
+      borderColor: 'rgba(239, 68, 68, 1)', // red-500
+      backgroundColor: 'rgba(239, 68, 68, 1)',
+      pointStyle: 'circle',
+      pointRadius: 6,
+      pointHoverRadius: 8,
+      showLine: false
     })
   }
-
-  // Add payment events
-  datasets.push({
-    label: 'Payment Events',
-    data: props.chartData.paymentEvents.map(event => ({
-      x: props.chartData.timeLabels[Math.floor(event.month / 12)],
-      y: event.balance,
-    })),
-    backgroundColor: event => 
-      event.raw?.type === 'additional' ? colors.scenarios[0].fill : colors.scenarios[1].fill,
-    borderColor: event => 
-      event.raw?.type === 'additional' ? colors.scenarios[0].line : colors.scenarios[1].line,
-    pointStyle: event => 
-      event.raw?.type === 'additional' ? 'star' : 'triangle',
-    pointRadius: 8,
-    showLine: false,
-  })
 
   return {
     labels: props.chartData.timeLabels,
@@ -193,44 +177,38 @@ const balanceChartData = computed(() => {
   }
 })
 
-const balanceChartOptions = computed(() => ({
+const balanceChartOptions = {
   ...baseOptions,
   plugins: {
     ...baseOptions.plugins,
-    legend: {
-      ...baseOptions.plugins.legend,
-      align: 'center',
-      labels: {
-        padding: 20,
-        usePointStyle: true,
-        pointStyle: 'circle'
-      }
-    },
     tooltip: {
       ...baseOptions.plugins.tooltip,
       callbacks: {
-        label: (context) => {
-          if (context.dataset.label === 'Payment Events') {
-            const event = props.chartData.paymentEvents[context.dataIndex]
-            return `${event.type === 'additional' ? 'Additional Payment' : 'Repayment Change'}: $${event.amount.toLocaleString()}`
-          }
-          const value = context.raw || 0
-          return `${context.dataset.label}: $${value.toLocaleString()}`
+        label: function(context) {
+          if (!context.raw && context.raw !== 0) return ''
+          return `${context.dataset.label}: $${context.raw.toLocaleString()}`
         }
       }
-    },
+    }
   },
   scales: {
     ...baseOptions.scales,
-    x: {
-      ...baseOptions.scales.x,
+    y: {
+      ...baseOptions.scales.y,
+      beginAtZero: true,
       ticks: {
-        maxRotation: 45,
-        minRotation: 45
+        callback: function(value) {
+          return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            notation: 'compact',
+            compactDisplay: 'short'
+          }).format(value)
+        }
       }
     }
   }
-}))
+}
 
 const doughnutOptions = {
   ...baseOptions,
@@ -242,6 +220,7 @@ const doughnutOptions = {
     tooltip: {
       callbacks: {
         label: function(context) {
+          if (!context.raw && context.raw !== 0) return '';
           const value = context.raw;
           const total = context.dataset.data.reduce((a, b) => a + b, 0);
           const percentage = ((value / total) * 100).toFixed(1);
