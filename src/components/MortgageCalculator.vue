@@ -823,203 +823,138 @@ const PMT = (rate, nper, pv, fv = 0, type = 0) => {
 }
 
 const calculateMortgage = () => {
-  // Calculate monthly interest rate (convert from annual percentage to monthly decimal)
-  const monthlyRate = (formData.value.interestRate / 100) / 12
-  const totalMonths = formData.value.loanTerm * 12
-  const principal = formData.value.loanAmount
-  
-  // Calculate monthly payment using the loan payment formula
-  // P = L[c(1 + c)^n]/[(1 + c)^n - 1]
-  // where P = monthly payment, L = loan amount, c = monthly interest rate, n = total number of months
-  const powerTerm = Math.pow(1 + monthlyRate, totalMonths)
-  const monthlyPayment = principal * (monthlyRate * powerTerm) / (powerTerm - 1)
-
-  // Round to 2 decimal places
-  const baseMonthlyPayment = Math.round(monthlyPayment * 100) / 100
-
-  // Set minimum repayment based on frequency with proper rounding
-  if (formData.value.repaymentFrequency === 'fortnightly') {
-    minimumRepayment.value = Math.round((baseMonthlyPayment * 12 / 26) * 100) / 100
-  } else if (formData.value.repaymentFrequency === 'weekly') {
-    minimumRepayment.value = Math.round((baseMonthlyPayment * 12 / 52) * 100) / 100
-  } else {
-    minimumRepayment.value = baseMonthlyPayment
-  }
-
-  const calculateBalances = () => {
-    let balance = principal
-    let standardBalance = principal
-    let totalInterestPaid = 0
-    let totalPrincipalPaid = 0
-    const balances = [balance]
-    const standardBalances = [standardBalance]
-    const timeLabels = ['Start']
-    const paymentEvents = []
-
-    // Start date is today
-    const startDate = new Date()
-    startDate.setDate(1)
-    startDate.setHours(0, 0, 0, 0)
-    
-    // Track when loan is fully paid
-    let actualMonthsToRepay = totalMonths
-    let finalRepaymentDate = null
-
-    // Sort repayment changes by date
-    const sortedRepaymentChanges = [...formData.value.repaymentChanges]
-      .sort((a, b) => {
-        const dateA = new Date(a.year, a.month - 1)
-        const dateB = new Date(b.year, b.month - 1)
-        return dateA - dateB
-      })
-
-    // Sort additional payments by date
-    const sortedAdditionalPayments = [...formData.value.additionalPayments]
-      .sort((a, b) => {
-        const dateA = new Date(a.year, a.month - 1)
-        const dateB = new Date(b.year, b.month - 1)
-        return dateA - dateB
-      })
-
-    // Calculate loan amortization
-    let currentPayment = baseMonthlyPayment
-    let currentRepaymentChangeIndex = 0
-    let currentAdditionalPaymentIndex = 0
-    let standardMonthlyPayment = baseMonthlyPayment
-
-    for (let month = 1; month <= totalMonths && (balance > 0.01 || standardBalance > 0.01); month++) {
-      // Calculate standard loan balance
-      if (standardBalance > 0.01) {
-        const standardInterestPayment = standardBalance * monthlyRate
-        let standardPrincipalPayment = standardMonthlyPayment - standardInterestPayment
-        
-        if (standardPrincipalPayment > standardBalance) {
-          standardPrincipalPayment = standardBalance
-          standardMonthlyPayment = standardBalance + standardInterestPayment
-        }
-        
-        standardBalance = Math.max(0, standardBalance - standardPrincipalPayment)
-
-      }
-
-      // Check if there's a repayment change for this month
-      const currentDate = new Date(startDate)
-      currentDate.setMonth(startDate.getMonth() + month - 1)
-      
-      while (currentRepaymentChangeIndex < sortedRepaymentChanges.length) {
-        const change = sortedRepaymentChanges[currentRepaymentChangeIndex]
-        const changeDate = new Date(change.year, change.month - 1)
-        
-        if (changeDate <= currentDate) {
-          currentPayment = change.amount
-          paymentEvents.push({
-            type: 'repaymentChange',
-            month,
-            amount: change.amount
-          })
-          currentRepaymentChangeIndex++
-        } else {
-          break
-        }
-      }
-
-      // Check for additional payments this month
-      while (currentAdditionalPaymentIndex < sortedAdditionalPayments.length) {
-        const payment = sortedAdditionalPayments[currentAdditionalPaymentIndex]
-        const paymentDate = new Date(payment.year, payment.month - 1)
-        
-        if (paymentDate <= currentDate) {
-          balance = Math.max(0, balance - payment.amount)
-          totalPrincipalPaid += payment.amount
-          paymentEvents.push({
-            type: 'additionalPayment',
-            month,
-            amount: payment.amount
-          })
-          currentAdditionalPaymentIndex++
-        } else {
-          break
-        }
-      }
-
-      // Calculate actual loan balance
-      if (balance > 0.01) {
-        const interestPayment = balance * monthlyRate
-        let principalPayment = currentPayment - interestPayment
-        
-        if (principalPayment > balance) {
-          principalPayment = balance
-          currentPayment = balance + interestPayment
-        }
-        
-        totalInterestPaid += interestPayment
-        totalPrincipalPaid += principalPayment
-        balance -= principalPayment
-      }
-
-      // Record balances at yearly intervals or when paid off
-      if (month % 12 === 0) {
-        balances.push(Math.max(0, balance))
-        standardBalances.push(Math.max(0, standardBalance))
-        const yearLabel = Math.floor(month / 12)
-        timeLabels.push(`Year ${yearLabel}`)
-      }
-
-      // Check if loan is fully paid off
-      if (balance <= 0.01 && !finalRepaymentDate) {
-        actualMonthsToRepay = month
-        finalRepaymentDate = new Date(startDate)
-        finalRepaymentDate.setMonth(startDate.getMonth() + month - 1)
-      }
-    }
-
-
-    return {
-      balances,
-      standardBalances,
-      timeLabels,
-      paymentEvents,
-      actualMonthsToRepay,
-      finalRepaymentDate,
-      totalInterestPaid: Math.round(totalInterestPaid * 100) / 100,
-      monthlyPayment: baseMonthlyPayment
-    }
-  }
-
-  // Calculate results
-  const calcResults = calculateBalances()
-  chartData.value = calcResults
-  
-  // Calculate total fees based on frequency
-  let totalFees = 0
-  if (formData.value.feeAmount) {
-    totalFees = formData.value.feeAmount
-    if (formData.value.feeFrequency === 'monthly') {
-      totalFees *= formData.value.loanTerm * 12
-    } else if (formData.value.feeFrequency === 'annually') {
-      totalFees *= formData.value.loanTerm
-    }
-  }
-  // Round to 2 decimal places
-  totalFees = Math.round(totalFees * 100) / 100
-  
-  // Calculate standard monthly payment (without additional payments)
-  const standardRate = formData.value.interestRate / 1200 // Convert annual rate to monthly
-  const numberOfPayments = formData.value.loanTerm * 12
-  const standardMonthlyPayment = -PMT(standardRate, numberOfPayments, principal)
-  
-  // Calculate total savings compared to standard loan
-  const standardLoanTotal = standardMonthlyPayment * numberOfPayments
-  const totalSavings = standardLoanTotal - (calcResults.totalInterestPaid + totalFees + principal)
-  
+  // Reset results
   results.value = {
-    monthlyPayment: calcResults.monthlyPayment,
-    totalInterest: calcResults.totalInterestPaid,
-    totalRepayment: principal + calcResults.totalInterestPaid + totalFees,
-    totalFees: totalFees,
-    actualMonthsToRepay: calcResults.actualMonthsToRepay,
-    finalRepaymentDate: calcResults.finalRepaymentDate,
-    totalSavings: Math.round(totalSavings * 100) / 100
+    monthlyPayment: null,
+    totalInterest: null,
+    totalRepayment: null,
+    totalFees: null,
+    actualMonthsToRepay: null,
+    finalRepaymentDate: null,
+    totalSavings: null
+  }
+
+  if (!formData.value.loanAmount || !formData.value.interestRate || !formData.value.loanTerm) {
+    return
+  }
+
+  // Calculate base monthly payment using PMT function
+  const monthlyInterestRate = (formData.value.interestRate / 100) / 12
+  const totalMonths = formData.value.loanTerm * 12
+  const baseMonthlyPayment = -PMT(monthlyInterestRate, totalMonths, formData.value.loanAmount)
+  
+  // Store minimum monthly payment for validation
+  minMonthlyPayment.value = baseMonthlyPayment
+  
+  // Initialize variables for tracking loan balance and payments
+  let loanBalance = formData.value.loanAmount
+  let totalInterestPaid = 0
+  let monthsToRepay = 0
+  let currentDate = new Date()
+  let standardLoanBalance = formData.value.loanAmount
+  let standardTotalInterest = 0
+  const balances = []
+  const standardBalances = []
+  const timeLabels = []
+  const paymentEvents = []
+
+  // Calculate monthly fee if applicable
+  const monthlyFee = formData.value.feeFrequency === 'monthly' ? formData.value.feeAmount : 
+                     formData.value.feeFrequency === 'annual' ? formData.value.feeAmount / 12 : 0
+
+  // Track total fees paid
+  let totalFeesPaid = 0
+
+  // Process each month until loan is paid off or term is reached
+  while (loanBalance > 0 && monthsToRepay < totalMonths) {
+    const month = monthsToRepay % 12
+    const year = Math.floor(monthsToRepay / 12) + currentDate.getFullYear()
+    
+    // Calculate interest for this month
+    const monthlyInterest = loanBalance * monthlyInterestRate
+    totalInterestPaid += monthlyInterest
+    
+    // Calculate standard loan interest
+    const standardMonthlyInterest = standardLoanBalance * monthlyInterestRate
+    standardTotalInterest += standardMonthlyInterest
+    
+    // Get additional payment for this month if any
+    const additionalPayment = formData.value.additionalPayments.find(
+      p => p.month === month + 1 && p.year === year
+    )?.amount || 0
+    
+    // Get repayment change for this month if any
+    const repaymentChange = formData.value.repaymentChanges.find(
+      p => p.month === month + 1 && p.year === year
+    )
+    
+    // Calculate payment for this month
+    let monthlyPayment = repaymentChange ? repaymentChange.amount : baseMonthlyPayment
+    
+    // Add monthly fee if applicable
+    if (monthlyFee > 0) {
+      totalFeesPaid += monthlyFee
+    }
+    
+    // Apply payments
+    let totalPayment = monthlyPayment + additionalPayment
+    loanBalance = Math.max(0, loanBalance - (totalPayment - monthlyInterest))
+    standardLoanBalance = Math.max(0, standardLoanBalance - (baseMonthlyPayment - standardMonthlyInterest))
+    
+    // Record balances and labels
+    balances.push(loanBalance)
+    standardBalances.push(standardLoanBalance)
+    timeLabels.push(formatMonthYear(month + 1, year))
+    
+    // Record payment events
+    if (additionalPayment > 0) {
+      paymentEvents.push({
+        type: 'additional',
+        amount: additionalPayment,
+        balance: loanBalance,
+        month: month + 1,
+        year: year
+      })
+    }
+    if (repaymentChange) {
+      paymentEvents.push({
+        type: 'change',
+        amount: repaymentChange.amount,
+        balance: loanBalance,
+        month: month + 1,
+        year: year
+      })
+    }
+    
+    monthsToRepay++
+  }
+
+  // Calculate final repayment date
+  const finalRepaymentDate = new Date()
+  finalRepaymentDate.setMonth(finalRepaymentDate.getMonth() + monthsToRepay)
+
+  // Calculate total savings compared to standard repayment
+  const standardTotalRepayment = baseMonthlyPayment * totalMonths
+  const actualTotalRepayment = standardTotalRepayment - (standardLoanBalance - loanBalance)
+  const totalSavings = standardTotalRepayment - actualTotalRepayment
+
+  // Update results
+  results.value = {
+    monthlyPayment: baseMonthlyPayment,
+    totalInterest: totalInterestPaid,
+    totalRepayment: formData.value.loanAmount + totalInterestPaid,
+    totalFees: totalFeesPaid,
+    actualMonthsToRepay: monthsToRepay,
+    finalRepaymentDate: finalRepaymentDate.toISOString(),
+    totalSavings: totalSavings
+  }
+
+  // Update chart data
+  chartData.value = {
+    balances,
+    standardBalances,
+    timeLabels,
+    paymentEvents
   }
 }
 
