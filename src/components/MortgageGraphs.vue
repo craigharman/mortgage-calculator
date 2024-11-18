@@ -229,27 +229,43 @@ const balanceChartData = computed(() => {
   }
 
   if (props.chartData.paymentEvents && props.chartData.paymentEvents.length > 0) {
-    const eventPoints = new Array(fullTimeLabels.length).fill(null)
-    const eventLabels = new Array(fullTimeLabels.length).fill(null)
-    
-    props.chartData.paymentEvents.forEach(event => {
-      const yearIndex = Math.floor(event.month / 12)
-      if (yearIndex < eventPoints.length) {
-        eventPoints[yearIndex] = extendedBalances[yearIndex]
-        eventLabels[yearIndex] = `${event.type === 'repaymentChange' ? 'Repayment Change' : 'Additional Payment'}: $${event.amount.toLocaleString()}`
-      }
-    })
+    // Add event markers for current balance and scenarios
+    const allBalances = [
+      { balances: extendedBalances, label: 'Current', color: 'rgba(239, 68, 68, 1)' },
+      ...Object.entries(extendedScenarioBalances).map(([key, balances], index) => ({
+        balances,
+        label: key,
+        color: colors.scenarios[index % colors.scenarios.length].line
+      }))
+    ]
 
-    datasets.push({
-      label: 'Payment Events',
-      data: eventPoints,
-      borderColor: 'rgba(239, 68, 68, 1)',
-      backgroundColor: 'rgba(239, 68, 68, 1)',
-      pointStyle: 'circle',
-      pointRadius: 6,
-      pointHoverRadius: 8,
-      showLine: false,
-      customLabels: eventLabels 
+    allBalances.forEach(({ balances, label, color }) => {
+      const eventPoints = new Array(fullTimeLabels.length).fill(null)
+      const eventLabels = new Array(fullTimeLabels.length).fill(null)
+      
+      props.chartData.paymentEvents.forEach(event => {
+        const yearIndex = Math.floor(event.month / 12)
+        if (yearIndex < eventPoints.length) {
+          eventPoints[yearIndex] = balances[yearIndex]
+          eventLabels[yearIndex] = `${event.type === 'repaymentChange' ? 'Repayment Change' : 'Additional Payment'}: $${event.amount.toLocaleString()}`
+        }
+      })
+
+      datasets.push({
+        label: `Payment Events (${label})`,
+        data: eventPoints,
+        borderColor: color,
+        backgroundColor: color,
+        pointStyle: 'circle',
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        showLine: false,
+        tooltip: {
+          callbacks: {
+            label: (context) => eventLabels[context.dataIndex] || ''
+          }
+        }
+      })
     })
   }
 
@@ -268,9 +284,8 @@ const balanceChartOptions = {
       callbacks: {
         label: function(context) {
           const dataset = context.dataset
-          if (dataset.label === 'Payment Events' && dataset.customLabels) {
-            const label = dataset.customLabels[context.dataIndex]
-            if (label) return label
+          if (dataset.label.includes('Payment Events') && dataset.tooltip.callbacks.label) {
+            return dataset.tooltip.callbacks.label(context)
           }
           if (!context.raw && context.raw !== 0) return ''
           return `${dataset.label}: $${context.raw.toLocaleString()}`
