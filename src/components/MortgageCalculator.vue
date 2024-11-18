@@ -231,7 +231,7 @@
 
             <div class="stat min-w-[200px] flex-1">
               <div class="stat-title text-gray-800">Total Fees</div>
-              <div class="stat-value text-2xl">${{ formData.feeAmount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+              <div class="stat-value text-2xl">${{ results.totalFees?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
             </div>
           </div>
         </div>
@@ -364,7 +364,7 @@ const chartDataWithScenarios = computed(() => {
     ...chartData.value,
     loanAmount: formData.value.loanAmount,
     totalInterest: results.value.totalInterest,
-    totalFees: formData.value.feeAmount,
+    totalFees: results.value.totalFees,
     scenarioBalances: scenarios.value.reduce((acc, scenario) => {
       acc[scenario.name] = scenario.data.chartData.balances;
       return acc;
@@ -590,10 +590,11 @@ const calculateMortgage = () => {
 
   const calculateBalances = () => {
     let balance = principal
+    let standardBalance = principal
     let totalInterestPaid = 0
     let totalPrincipalPaid = 0
     const balances = [balance]
-    const standardBalances = [balance]
+    const standardBalances = [standardBalance]
     const timeLabels = ['Start']
     const paymentEvents = []
 
@@ -606,28 +607,74 @@ const calculateMortgage = () => {
     let actualMonthsToRepay = totalMonths
     let finalRepaymentDate = null
 
-    // Calculate loan amortization
-    for (let month = 1; month <= totalMonths && balance > 0.01; month++) {
-      // Calculate interest portion
-      const interestPayment = balance * monthlyRate
-      
-      // Calculate principal portion
-      let principalPayment = baseMonthlyPayment - interestPayment
-      
-      // Adjust final payment if needed
-      if (principalPayment > balance) {
-        principalPayment = balance
-      }
-      
-      // Update running totals
-      totalInterestPaid += interestPayment
-      totalPrincipalPaid += principalPayment
-      balance -= principalPayment
+    // Sort repayment changes by date
+    const sortedRepaymentChanges = [...formData.value.repaymentChanges]
+      .sort((a, b) => {
+        const dateA = new Date(a.year, a.month - 1)
+        const dateB = new Date(b.year, b.month - 1)
+        return dateA - dateB
+      })
 
-      // Record balance at yearly intervals or when paid off
-      if (month % 12 === 0 || balance <= 0.01) {
+    // Calculate loan amortization
+    let currentPayment = baseMonthlyPayment
+    let currentRepaymentChangeIndex = 0
+
+    for (let month = 1; month <= totalMonths && (balance > 0.01 || standardBalance > 0.01); month++) {
+      // Check if there's a repayment change for this month
+      const currentDate = new Date(startDate)
+      currentDate.setMonth(startDate.getMonth() + month - 1)
+      
+      while (currentRepaymentChangeIndex < sortedRepaymentChanges.length) {
+        const change = sortedRepaymentChanges[currentRepaymentChangeIndex]
+        const changeDate = new Date(change.year, change.month - 1)
+        
+        if (changeDate <= currentDate) {
+          currentPayment = change.amount
+          paymentEvents.push({
+            type: 'repaymentChange',
+            month,
+            amount: change.amount
+          })
+          currentRepaymentChangeIndex++
+        } else {
+          break
+        }
+      }
+
+      // Calculate actual loan balance
+      if (balance > 0.01) {
+        const interestPayment = balance * monthlyRate
+        let principalPayment = currentPayment - interestPayment
+        
+        // Adjust final payment if needed
+        if (principalPayment > balance) {
+          principalPayment = balance
+          currentPayment = balance + interestPayment
+        }
+        
+        // Update running totals
+        totalInterestPaid += interestPayment
+        totalPrincipalPaid += principalPayment
+        balance -= principalPayment
+      }
+
+      // Calculate standard loan balance (always using baseMonthlyPayment)
+      if (standardBalance > 0.01) {
+        const standardInterestPayment = standardBalance * monthlyRate
+        let standardPrincipalPayment = baseMonthlyPayment - standardInterestPayment
+        
+        // Adjust final payment if needed
+        if (standardPrincipalPayment > standardBalance) {
+          standardPrincipalPayment = standardBalance
+        }
+        
+        standardBalance -= standardPrincipalPayment
+      }
+
+      // Record balances at yearly intervals or when paid off
+      if (month % 12 === 0 || balance <= 0.01 || standardBalance <= 0.01) {
         balances.push(Math.max(0, balance))
-        standardBalances.push(Math.max(0, balance))
+        standardBalances.push(Math.max(0, standardBalance))
         
         if (balance <= 0.01 && !finalRepaymentDate) {
           actualMonthsToRepay = month
@@ -655,11 +702,26 @@ const calculateMortgage = () => {
   // Calculate results
   const calcResults = calculateBalances()
   chartData.value = calcResults
+  
+  // Calculate total fees based on frequency
+  let totalFees = formData.value.feeAmount
+  if (formData.value.feeFrequency === 'weekly') {
+    totalFees *= 52 * formData.value.loanTerm
+  } else if (formData.value.feeFrequency === 'monthly') {
+    totalFees *= 12 * formData.value.loanTerm
+  } else if (formData.value.feeFrequency === 'quarterly') {
+    totalFees *= 4 * formData.value.loanTerm
+  } else if (formData.value.feeFrequency === 'annually') {
+    totalFees *= formData.value.loanTerm
+  }
+  // Round to 2 decimal places
+  totalFees = Math.round(totalFees * 100) / 100
+  
   results.value = {
     monthlyPayment: calcResults.monthlyPayment,
     totalInterest: calcResults.totalInterestPaid,
-    totalRepayment: principal + calcResults.totalInterestPaid + formData.value.feeAmount,
-    totalFees: formData.value.feeAmount,
+    totalRepayment: principal + calcResults.totalInterestPaid + totalFees,
+    totalFees: totalFees,
     actualMonthsToRepay: calcResults.actualMonthsToRepay,
     finalRepaymentDate: calcResults.finalRepaymentDate
   }
@@ -811,11 +873,6 @@ const resetCalculator = () => {
 /* Additional input focus styles */
 .input:focus, .select:focus {
   @apply outline-none ring-2 ring-gray-400 border-gray-400;
-}
-
-/* Make sure all buttons in the form have good contrast */
-.form-control .btn:not(.btn-outline):not(.btn-ghost) {
-  @apply text-white;
 }
 
 /* Style for input labels */
