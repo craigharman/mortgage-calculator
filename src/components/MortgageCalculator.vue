@@ -204,7 +204,7 @@
         <!-- Results Section -->
         <div v-if="results" class="mt-8 space-y-4">
           <h3 class="text-xl font-semibold text-gray-800">Results</h3>
-          <div class="stats stats-vertical w-full lg:stats-horizontal flex-wrap">
+          <div class="stats shadow w-full">
             <div class="stat min-w-[200px] flex-1">
               <div class="stat-title text-gray-800">Minimum Repayment</div>
               <div class="stat-value text-2xl">${{ results.monthlyPayment?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
@@ -232,6 +232,12 @@
             <div class="stat min-w-[200px] flex-1">
               <div class="stat-title text-gray-800">Total Fees</div>
               <div class="stat-value text-2xl">${{ results.totalFees?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+            </div>
+
+            <div class="stat min-w-[200px] flex-1">
+              <div class="stat-title text-gray-800">Total Savings</div>
+              <div class="stat-value text-2xl" :class="{ 'text-emerald-600': results.totalSavings > 0 }">${{ results.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+              <div class="stat-desc">Compared to standard loan</div>
             </div>
           </div>
         </div>
@@ -313,7 +319,8 @@ const results = ref({
   totalRepayment: null,
   totalFees: null,
   actualMonthsToRepay: null,
-  finalRepaymentDate: null
+  finalRepaymentDate: null,
+  totalSavings: null
 })
 
 const chartData = ref({
@@ -456,7 +463,8 @@ const exportToExcel = () => {
     ['Total Interest', formatCurrency(results.value.totalInterest)],
     ['Total Cost', formatCurrency(results.value.totalRepayment)],
     ['Payoff Date', results.value.finalRepaymentDate],
-    ['Total Years', results.value.actualMonthsToRepay]
+    ['Total Years', results.value.actualMonthsToRepay],
+    ['Total Savings', formatCurrency(results.value.totalSavings)]
   ]
   
   // Add additional payments if they exist
@@ -541,7 +549,8 @@ const exportToExcel = () => {
         ['Total Interest', formatCurrency(scenario.data.results.totalInterest)],
         ['Total Cost', formatCurrency(scenario.data.results.totalRepayment)],
         ['Payoff Date', scenario.data.results.finalRepaymentDate],
-        ['Total Years', scenario.data.results.actualMonthsToRepay]
+        ['Total Years', scenario.data.results.actualMonthsToRepay],
+        ['Total Savings', formatCurrency(scenario.data.results.totalSavings)]
       ]
 
       // Add additional payments if they exist
@@ -663,6 +672,20 @@ const displayMinPayment = computed(() => {
   }
   return minMonthlyPayment.value; // default to monthly if frequency not recognized
 });
+
+// PMT function to calculate loan payments (similar to Excel's PMT)
+const PMT = (rate, nper, pv, fv = 0, type = 0) => {
+  if (rate === 0) return -pv / nper
+  
+  const pvif = Math.pow(1 + rate, nper)
+  const pmt = rate * pv * (pvif + fv) / (pvif - 1)
+  
+  if (type === 1) {
+    return -pmt / (1 + rate)
+  } else {
+    return -pmt
+  }
+}
 
 const calculateMortgage = () => {
   // Calculate monthly interest rate (convert from annual percentage to monthly decimal)
@@ -833,18 +856,26 @@ const calculateMortgage = () => {
   chartData.value = calcResults
   
   // Calculate total fees based on frequency
-  let totalFees = formData.value.feeAmount
-  if (formData.value.feeFrequency === 'weekly') {
-    totalFees *= 52 * formData.value.loanTerm
-  } else if (formData.value.feeFrequency === 'monthly') {
-    totalFees *= 12 * formData.value.loanTerm
-  } else if (formData.value.feeFrequency === 'quarterly') {
-    totalFees *= 4 * formData.value.loanTerm
-  } else if (formData.value.feeFrequency === 'annually') {
-    totalFees *= formData.value.loanTerm
+  let totalFees = 0
+  if (formData.value.feeAmount) {
+    totalFees = formData.value.feeAmount
+    if (formData.value.feeFrequency === 'monthly') {
+      totalFees *= formData.value.loanTerm * 12
+    } else if (formData.value.feeFrequency === 'annually') {
+      totalFees *= formData.value.loanTerm
+    }
   }
   // Round to 2 decimal places
   totalFees = Math.round(totalFees * 100) / 100
+  
+  // Calculate standard monthly payment (without additional payments)
+  const standardRate = formData.value.interestRate / 1200 // Convert annual rate to monthly
+  const numberOfPayments = formData.value.loanTerm * 12
+  const standardMonthlyPayment = -PMT(standardRate, numberOfPayments, principal)
+  
+  // Calculate total savings compared to standard loan
+  const standardLoanTotal = standardMonthlyPayment * numberOfPayments
+  const totalSavings = standardLoanTotal - (calcResults.totalInterestPaid + totalFees + principal)
   
   results.value = {
     monthlyPayment: calcResults.monthlyPayment,
@@ -852,7 +883,8 @@ const calculateMortgage = () => {
     totalRepayment: principal + calcResults.totalInterestPaid + totalFees,
     totalFees: totalFees,
     actualMonthsToRepay: calcResults.actualMonthsToRepay,
-    finalRepaymentDate: calcResults.finalRepaymentDate
+    finalRepaymentDate: calcResults.finalRepaymentDate,
+    totalSavings: Math.round(totalSavings * 100) / 100
   }
 }
 
@@ -914,7 +946,8 @@ const resetCalculator = () => {
     totalRepayment: null,
     totalFees: null,
     actualMonthsToRepay: null,
-    finalRepaymentDate: null
+    finalRepaymentDate: null,
+    totalSavings: null
   }
   chartData.value = {
     balances: [],
