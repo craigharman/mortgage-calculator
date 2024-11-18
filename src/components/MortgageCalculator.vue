@@ -204,7 +204,7 @@
           <div class="stats stats-vertical w-full lg:stats-horizontal flex-wrap">
             <div class="stat min-w-[200px] flex-1">
               <div class="stat-title">Minimum Repayment</div>
-              <div class="stat-value text-2xl">${{ results.minimumRepayment.toFixed(2) }}</div>
+              <div class="stat-value text-2xl">${{ results.minimumRepayment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
               <div class="stat-desc">{{ formData.repaymentFrequency }}</div>
             </div>
 
@@ -223,12 +223,12 @@
 
             <div class="stat min-w-[200px] flex-1">
               <div class="stat-title">Total Interest</div>
-              <div class="stat-value text-2xl">${{ results.totalInterest.toFixed(2) }}</div>
+              <div class="stat-value text-2xl">${{ results.totalInterest.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
             </div>
 
             <div class="stat min-w-[200px] flex-1">
               <div class="stat-title">Total Fees</div>
-              <div class="stat-value text-2xl">${{ results.totalFees.toFixed(2) }}</div>
+              <div class="stat-value text-2xl">${{ results.totalFees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
             </div>
           </div>
         </div>
@@ -672,16 +672,17 @@ const resetCalculator = () => {
   @apply bg-blue-50;
 }
 
+/* Update stat titles to match input labels */
 .stat-title {
-  @apply text-blue-600;
+  @apply text-gray-800;
 }
 
 .stat-value {
-  @apply text-blue-900;
+  @apply text-gray-900;
 }
 
 .stat-desc {
-  @apply text-blue-700;
+  @apply text-gray-600;
 }
 
 .modal-box {

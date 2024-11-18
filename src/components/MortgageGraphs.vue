@@ -42,11 +42,17 @@ const baseOptions = {
       position: 'top',
     },
     tooltip: {
-      backgroundColor: 'rgba(30, 58, 138, 0.8)', // dark blue background
+      backgroundColor: 'rgba(31, 41, 55, 0.9)',  // gray-800
       titleColor: 'white',
       bodyColor: 'white',
-      borderColor: 'rgba(59, 130, 246, 0.5)', // blue border
+      borderColor: 'rgba(107, 114, 128, 0.5)',  // gray-500
       borderWidth: 1,
+      padding: 12,
+      boxPadding: 6,
+      usePointStyle: true,
+      titleFont: {
+        weight: 600
+      }
     },
     filler: {
       propagate: false
@@ -55,14 +61,20 @@ const baseOptions = {
   scales: {
     x: {
       grid: {
-        color: 'rgba(226, 232, 240, 0.3)', // subtle grid lines
+        color: 'rgba(243, 244, 246, 0.6)',  // gray-100
+        tickColor: 'rgba(209, 213, 219, 0.6)'  // gray-300
       },
+      ticks: {
+        color: 'rgb(55, 65, 81)'  // gray-700
+      }
     },
     y: {
       grid: {
-        color: 'rgba(226, 232, 240, 0.3)', // subtle grid lines
+        color: 'rgba(243, 244, 246, 0.6)',  // gray-100
+        tickColor: 'rgba(209, 213, 219, 0.6)'  // gray-300
       },
       ticks: {
+        color: 'rgb(55, 65, 81)',  // gray-700
         callback: value => {
           return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -76,22 +88,22 @@ const baseOptions = {
   }
 }
 
-// Professional color palette
+// Professional color palette with vibrant but corporate colors
 const colors = {
   standard: {
-    line: 'rgba(30, 58, 138, 0.7)', // dark blue
-    fill: 'rgba(30, 58, 138, 0.1)'
+    line: 'rgba(79, 70, 229, 0.7)',  // indigo-600
+    fill: 'rgba(79, 70, 229, 0.1)'
   },
   current: {
-    line: 'rgba(59, 130, 246, 1)', // medium blue
-    fill: 'rgba(59, 130, 246, 0.1)'
+    line: 'rgba(16, 185, 129, 0.9)',  // emerald-500
+    fill: 'rgba(16, 185, 129, 0.1)'
   },
   scenarios: [
-    { line: 'rgba(14, 165, 233, 0.7)', fill: 'rgba(14, 165, 233, 0.1)' }, // sky blue
-    { line: 'rgba(56, 189, 248, 0.7)', fill: 'rgba(56, 189, 248, 0.1)' }, // lighter blue
-    { line: 'rgba(2, 132, 199, 0.7)', fill: 'rgba(2, 132, 199, 0.1)' },   // darker blue
-    { line: 'rgba(51, 65, 85, 0.7)', fill: 'rgba(51, 65, 85, 0.1)' },     // slate
-    { line: 'rgba(71, 85, 105, 0.7)', fill: 'rgba(71, 85, 105, 0.1)' }    // darker slate
+    { line: 'rgba(245, 158, 11, 0.7)', fill: 'rgba(245, 158, 11, 0.1)' },  // amber-500
+    { line: 'rgba(219, 39, 119, 0.7)', fill: 'rgba(219, 39, 119, 0.1)' },  // pink-600
+    { line: 'rgba(37, 99, 235, 0.7)', fill: 'rgba(37, 99, 235, 0.1)' },    // blue-600
+    { line: 'rgba(147, 51, 234, 0.7)', fill: 'rgba(147, 51, 234, 0.1)' },  // purple-600
+    { line: 'rgba(220, 38, 38, 0.7)', fill: 'rgba(220, 38, 38, 0.1)' }     // red-600
   ]
 }
 
@@ -104,14 +116,14 @@ const paymentBreakdownData = computed(() => ({
       props.chartData.totalFees
     ],
     backgroundColor: [
-      colors.standard.fill,
-      colors.current.fill,
-      colors.scenarios[0].fill
+      'rgba(16, 185, 129, 0.7)',  // emerald-500
+      'rgba(245, 158, 11, 0.7)',  // amber-500
+      'rgba(79, 70, 229, 0.7)'    // indigo-600
     ],
     borderColor: [
-      colors.standard.line,
-      colors.current.line,
-      colors.scenarios[0].line
+      'rgba(16, 185, 129, 1)',    // emerald-500
+      'rgba(245, 158, 11, 1)',    // amber-500
+      'rgba(79, 70, 229, 1)'      // indigo-600
     ],
     borderWidth: 1
   }]
