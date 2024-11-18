@@ -588,6 +588,12 @@ const calculateMortgage = () => {
     minimumRepayment.value = baseMonthlyPayment
   }
 
+  console.log('Initial values:')
+console.log('Principal:', principal)
+console.log('Monthly Rate:', monthlyRate)
+console.log('Base Monthly Payment:', baseMonthlyPayment)
+console.log('Total Months:', totalMonths)
+
   const calculateBalances = () => {
     let balance = principal
     let standardBalance = principal
@@ -618,6 +624,9 @@ const calculateMortgage = () => {
     // Calculate loan amortization
     let currentPayment = baseMonthlyPayment
     let currentRepaymentChangeIndex = 0
+
+    // Initialize variables for standard loan calculation
+    let standardMonthlyPayment = baseMonthlyPayment
 
     for (let month = 1; month <= totalMonths && (balance > 0.01 || standardBalance > 0.01); month++) {
       // Check if there's a repayment change for this month
@@ -658,34 +667,55 @@ const calculateMortgage = () => {
         balance -= principalPayment
       }
 
-      // Calculate standard loan balance (always using baseMonthlyPayment)
+      // Calculate standard loan balance
       if (standardBalance > 0.01) {
         const standardInterestPayment = standardBalance * monthlyRate
-        let standardPrincipalPayment = baseMonthlyPayment - standardInterestPayment
+        let standardPrincipalPayment = standardMonthlyPayment - standardInterestPayment
         
         // Adjust final payment if needed
         if (standardPrincipalPayment > standardBalance) {
           standardPrincipalPayment = standardBalance
+          standardMonthlyPayment = standardBalance + standardInterestPayment
         }
         
-        standardBalance -= standardPrincipalPayment
+        standardBalance = Math.max(0, standardBalance - standardPrincipalPayment)
+
+        if (month % 12 === 0) {
+  console.log(`\nYear ${month/12} Standard Loan:`)
+  console.log('Standard Balance:', standardBalance)
+  console.log('Standard Interest Payment:', standardInterestPayment)
+  console.log('Standard Principal Payment:', standardPrincipalPayment)
+  console.log('Standard Monthly Payment:', standardMonthlyPayment)
+}
+      }
+
+      // Calculate actual loan balance
+      if (balance > 0.01) {
+        const interestPayment = balance * monthlyRate
+        let principalPayment = currentPayment - interestPayment
+        
+        if (principalPayment > balance) {
+          principalPayment = balance
+          currentPayment = balance + interestPayment
+        }
+        
+        totalInterestPaid += interestPayment
+        totalPrincipalPaid += principalPayment
+        balance -= principalPayment
       }
 
       // Record balances at yearly intervals or when paid off
-      if (month % 12 === 0 || balance <= 0.01 || standardBalance <= 0.01) {
+      if (month % 12 === 0) {
         balances.push(Math.max(0, balance))
         standardBalances.push(Math.max(0, standardBalance))
-        
-        if (balance <= 0.01 && !finalRepaymentDate) {
-          actualMonthsToRepay = month
-          finalRepaymentDate = new Date(startDate)
-          finalRepaymentDate.setMonth(startDate.getMonth() + month)
-        }
-
         const yearLabel = Math.floor(month / 12)
-        timeLabels.push(yearLabel === 0 ? 'Start' : `Year ${yearLabel}`)
+        timeLabels.push(`Year ${yearLabel}`)
       }
     }
+
+    console.log('\nFinal values:')
+console.log('Standard Balances:', standardBalances)
+console.log('Time Labels:', timeLabels)
 
     return {
       balances,
