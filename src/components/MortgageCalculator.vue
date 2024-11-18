@@ -737,7 +737,9 @@ const calculateMortgage = () => {
     balances,
     standardBalances,
     timeLabels,
-    paymentEvents
+    paymentEvents,
+    interestRate: formData.value.interestRate,
+    minimumRepayment: minimumRepayment.value
   }
 }
 

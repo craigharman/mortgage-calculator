@@ -27,7 +27,15 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointE
 const props = defineProps({
   chartData: {
     type: Object,
-    required: true
+    required: true,
+    default: () => ({
+      balances: [],
+      standardBalances: [],
+      timeLabels: [],
+      paymentEvents: [],
+      interestRate: 0,
+      minimumRepayment: 0
+    })
   }
 });
 
@@ -130,10 +138,42 @@ const paymentBreakdownData = computed(() => ({
 }));
 
 const balanceChartData = computed(() => {
+  // Generate full timeline of 30 years
+  const fullTimeLabels = ['Start']
+  for (let i = 1; i <= Math.max(30, Math.ceil(props.chartData.timeLabels.length / 12)); i++) {
+    fullTimeLabels.push(`Year ${i}`)
+  }
+
+  // Extend balances arrays to match full timeline
+  const extendedBalances = [...props.chartData.balances]
+  const extendedStandardBalances = [...props.chartData.standardBalances]
+  
+  // Fill remaining years with zero for accelerated payoff
+  while (extendedBalances.length < fullTimeLabels.length) {
+    extendedBalances.push(0)
+  }
+
+  // Continue standard loan amortization until 30 years
+  if (extendedStandardBalances.length < fullTimeLabels.length) {
+    const monthlyRate = (props.chartData.interestRate / 100) / 12
+    const monthlyPayment = props.chartData.minimumRepayment
+    let balance = extendedStandardBalances[extendedStandardBalances.length - 1]
+    
+    while (extendedStandardBalances.length < fullTimeLabels.length) {
+      // Calculate 12 months of payments to get to next year
+      for (let i = 0; i < 12 && balance > 0; i++) {
+        const interestPayment = balance * monthlyRate
+        const principalPayment = monthlyPayment - interestPayment
+        balance = Math.max(0, balance - principalPayment)
+      }
+      extendedStandardBalances.push(balance)
+    }
+  }
+
   const datasets = [
     {
       label: 'Standard Loan',
-      data: props.chartData.standardBalances,
+      data: extendedStandardBalances,
       borderColor: colors.standard.line,
       backgroundColor: colors.standard.fill,
       fill: true,
@@ -141,7 +181,7 @@ const balanceChartData = computed(() => {
     },
     {
       label: 'With Extra Payments',
-      data: props.chartData.balances,
+      data: extendedBalances,
       borderColor: colors.current.line,
       backgroundColor: colors.current.fill,
       fill: true,
@@ -151,11 +191,11 @@ const balanceChartData = computed(() => {
 
   // Add payment events if they exist
   if (props.chartData.paymentEvents && props.chartData.paymentEvents.length > 0) {
-    const eventPoints = new Array(props.chartData.timeLabels.length).fill(null)
+    const eventPoints = new Array(fullTimeLabels.length).fill(null)
     props.chartData.paymentEvents.forEach(event => {
       const index = Math.floor(event.month / 12)
       if (index < eventPoints.length) {
-        eventPoints[index] = props.chartData.balances[index]
+        eventPoints[index] = extendedBalances[index]
       }
     })
 
@@ -172,7 +212,7 @@ const balanceChartData = computed(() => {
   }
 
   return {
-    labels: props.chartData.timeLabels,
+    labels: fullTimeLabels,
     datasets
   }
 })
@@ -193,6 +233,18 @@ const balanceChartOptions = {
   },
   scales: {
     ...baseOptions.scales,
+    x: {
+      ...baseOptions.scales.x,
+      grid: {
+        ...baseOptions.scales.x.grid,
+        display: true
+      },
+      ticks: {
+        ...baseOptions.scales.x.ticks,
+        autoSkip: false,
+        maxRotation: 45
+      }
+    },
     y: {
       ...baseOptions.scales.y,
       beginAtZero: true,
