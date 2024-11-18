@@ -4,91 +4,97 @@
       <div class="card-body">
         <h2 class="card-title text-2xl mb-6 text-gray-800">Mortgage Calculator</h2>
         
-        <form @submit.prevent="calculateMortgage" class="space-y-4">
-          <!-- Loan Amount -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text text-gray-800">Loan Amount ($)</span>
-            </label>
-            <input
-              v-model.number="formData.loanAmount"
-              type="number"
-              min="0"
-              step="1000"
-              class="input input-bordered text-gray-800"
-              required
-            />
-          </div>
+        <form @submit.prevent="calculateMortgage" class="space-y-6">
+          <!-- Basic Loan Details -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Loan Amount -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text text-gray-800">Loan Amount ($)</span>
+              </label>
+              <input
+                type="number"
+                v-model.number="formData.loanAmount"
+                class="input input-bordered w-full text-gray-800"
+                min="0"
+                step="1000"
+                required
+              />
+            </div>
 
-          <!-- Loan Term -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text text-gray-800">Loan Term (years)</span>
-            </label>
-            <input
-              v-model.number="formData.loanTerm"
-              type="number"
-              min="1"
-              max="30"
-              class="input input-bordered text-gray-800"
-              required
-            />
-          </div>
+            <!-- Interest Rate -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text text-gray-800">Interest Rate (%)</span>
+              </label>
+              <input
+                type="number"
+                v-model.number="formData.interestRate"
+                class="input input-bordered w-full text-gray-800"
+                min="0"
+                step="0.01"
+                required
+              />
+            </div>
 
-          <!-- Interest Rate -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text text-gray-800">Interest Rate (%)</span>
-            </label>
-            <input
-              v-model.number="formData.interestRate"
-              type="number"
-              min="0"
-              step="0.01"
-              class="input input-bordered text-gray-800"
-              required
-            />
-          </div>
+            <!-- Loan Term -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text text-gray-800">Loan Term (years)</span>
+              </label>
+              <input
+                type="number"
+                v-model.number="formData.loanTerm"
+                class="input input-bordered w-full text-gray-800"
+                min="1"
+                max="30"
+                required
+              />
+            </div>
 
-          <!-- Repayment Frequency -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text text-gray-800">Repayment Frequency</span>
-            </label>
-            <select v-model="formData.repaymentFrequency" class="select select-bordered text-gray-800" required>
-              <option value="weekly">Weekly</option>
-              <option value="fortnightly">Fortnightly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
+            <!-- Repayment Frequency -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text text-gray-800">Repayment Frequency</span>
+              </label>
+              <select
+                v-model="formData.repaymentFrequency"
+                class="select select-bordered w-full text-gray-800"
+                required
+              >
+                <option value="monthly">Monthly</option>
+                <option value="fortnightly">Fortnightly</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </div>
 
-          <!-- Fee Amount -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text text-gray-800">Fee Amount ($)</span>
-            </label>
-            <input
-              v-model.number="formData.feeAmount"
-              type="number"
-              min="0"
-              step="0.01"
-              class="input input-bordered text-gray-800"
-              required
-            />
-          </div>
+            <!-- Fee Amount -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text text-gray-800">Fee Amount ($)</span>
+              </label>
+              <input
+                type="number"
+                v-model.number="formData.feeAmount"
+                class="input input-bordered w-full text-gray-800"
+                min="0"
+                step="1"
+              />
+            </div>
 
-          <!-- Fee Frequency -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text text-gray-800">Fee Frequency</span>
-            </label>
-            <select v-model="formData.feeFrequency" class="select select-bordered text-gray-800" required>
-              <option value="once">Once-off</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="annually">Annually</option>
-            </select>
+            <!-- Fee Frequency -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text text-gray-800">Fee Frequency</span>
+              </label>
+              <select
+                v-model="formData.feeFrequency"
+                class="select select-bordered w-full text-gray-800"
+              >
+                <option value="monthly">Monthly</option>
+                <option value="annual">Annual</option>
+              </select>
+            </div>
           </div>
 
           <!-- Additional Payments Section -->
