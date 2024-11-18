@@ -204,40 +204,54 @@
         <!-- Results Section -->
         <div v-if="results" class="mt-8 space-y-4">
           <h3 class="text-xl font-semibold text-gray-800">Results</h3>
-          <div class="stats shadow w-full">
-            <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title text-gray-800">Minimum Repayment</div>
-              <div class="stat-value text-2xl">${{ results.monthlyPayment?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
-              <div class="stat-desc">{{ formData.repaymentFrequency }}</div>
-            </div>
-
-            <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title text-gray-800">Repayment Date</div>
-              <div class="stat-value text-2xl">{{ results.finalRepaymentDate ? new Date(results.finalRepaymentDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : '-' }}</div>
-              <div class="stat-desc text-success" v-if="results.actualMonthsToRepay < formData.loanTerm * 12">
-                {{ formData.loanTerm * 12 - results.actualMonthsToRepay }} months earlier!
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- First Row -->
+            <div class="stats shadow">
+              <div class="stat">
+                <div class="stat-title text-gray-800">Monthly Payment</div>
+                <div class="stat-value text-2xl">${{ results.monthlyPayment?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-desc">Minimum required payment</div>
               </div>
             </div>
 
-            <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title text-gray-800">Time to Repay</div>
-              <div class="stat-value text-2xl">{{ formatMonthsToYearsAndMonths(results.actualMonthsToRepay) }}</div>
+            <div class="stats shadow">
+              <div class="stat">
+                <div class="stat-title text-gray-800">Total Interest</div>
+                <div class="stat-value text-2xl">${{ results.totalInterest?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+              </div>
             </div>
 
-            <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title text-gray-800">Total Interest</div>
-              <div class="stat-value text-2xl">${{ results.totalInterest?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+            <div class="stats shadow">
+              <div class="stat">
+                <div class="stat-title text-gray-800">Total Fees</div>
+                <div class="stat-value text-2xl">${{ results.totalFees?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+              </div>
             </div>
 
-            <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title text-gray-800">Total Fees</div>
-              <div class="stat-value text-2xl">${{ results.totalFees?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+            <!-- Second Row -->
+            <div class="stats shadow">
+              <div class="stat">
+                <div class="stat-title text-gray-800">Time to Repay</div>
+                <div class="stat-value text-2xl">{{ formatMonthsToYearsAndMonths(results.actualMonthsToRepay) }}</div>
+              </div>
             </div>
 
-            <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title text-gray-800">Total Savings</div>
-              <div class="stat-value text-2xl" :class="{ 'text-emerald-600': results.totalSavings > 0 }">${{ results.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
-              <div class="stat-desc">Compared to standard loan</div>
+            <div class="stats shadow">
+              <div class="stat">
+                <div class="stat-title text-gray-800">Payoff Date</div>
+                <div class="stat-value text-2xl">{{ results.finalRepaymentDate ? new Date(results.finalRepaymentDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : '-' }}</div>
+                <div class="stat-desc text-success" v-if="results.actualMonthsToRepay < formData.loanTerm * 12">
+                  {{ formatMonthsToYearsAndMonths(formData.loanTerm * 12 - results.actualMonthsToRepay) }} earlier!
+                </div>
+              </div>
+            </div>
+
+            <div class="stats shadow">
+              <div class="stat">
+                <div class="stat-title text-gray-800">Total Savings</div>
+                <div class="stat-value text-2xl" :class="{ 'text-emerald-600': results.totalSavings > 0 }">${{ results.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-desc">Compared to standard loan</div>
+              </div>
             </div>
           </div>
         </div>
