@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-4">
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
-        <h3 class="card-title">Payment Breakdown</h3>
+        <h3 class="card-title text-gray-800">Payment Breakdown</h3>
         <div class="relative h-64">
           <PieChart 
             v-if="hasData"
@@ -17,7 +17,7 @@
     </div>
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
-        <h3 class="card-title">Loan Balance Over Time</h3>
+        <h3 class="card-title text-gray-800">Loan Balance Over Time</h3>
         <div class="h-96"> 
           <LineChart :data="balanceChartData" :options="balanceChartOptions" />
         </div>
