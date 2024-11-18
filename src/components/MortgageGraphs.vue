@@ -231,7 +231,7 @@ const balanceChartData = computed(() => {
   if (props.chartData.paymentEvents && props.chartData.paymentEvents.length > 0) {
     // Add event markers for current balance and scenarios
     const allBalances = [
-      { balances: extendedBalances, label: 'Current', color: 'rgba(239, 68, 68, 1)' },
+      { balances: extendedBalances, label: 'Current', color: colors.current.line },
       ...Object.entries(extendedScenarioBalances).map(([key, balances], index) => ({
         balances,
         label: key,
