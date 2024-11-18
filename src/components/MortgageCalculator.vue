@@ -223,6 +223,29 @@
           </div>
         </form>
 
+        <!-- Scenarios -->
+        <div class="flex justify-end gap-2 mb-4" v-if="results">
+      <button class="btn btn-primary" @click="showSaveScenarioModal = true">
+        Save Scenario
+      </button>
+      <button class="btn btn-error" @click="clearScenarios" v-if="scenarios.length > 0">
+        Clear All Scenarios
+      </button>
+    </div>
+
+    <div class="mb-4" v-if="scenarios.length > 0">
+      <h3 class="text-lg font-bold mb-2">Saved Scenarios</h3>
+      <div class="flex flex-wrap gap-2">
+        <div v-for="scenario in scenarios" :key="scenario.id" 
+             class="badge badge-lg gap-2 p-4">
+          <span>{{ scenario.name }}</span>
+          <button class="btn btn-ghost btn-xs" @click="deleteScenario(scenario.id)">
+            ×
+          </button>
+        </div>
+      </div>
+    </div>
+
         <!-- Results Section -->
         <div v-if="results" class="mt-8 space-y-4">
           <h3 class="text-xl font-semibold">Results</h3>
@@ -259,10 +282,36 @@
         </div>
 
          <!-- Graphs Section -->
-        <MortgageGraphs v-if="results" :chartData="chartData" />
+        <div v-if="results" class="mt-4">
+      <MortgageGraphs :chart-data="chartDataWithScenarios" />
+    </div>
       
       </div>
     </div>
+    <dialog :class="{'modal': true, 'modal-open': showSaveScenarioModal}">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Save Current Scenario</h3>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Scenario Name</span>
+          </label>
+          <input v-model="currentScenarioName" type="text" 
+                 placeholder="e.g., Extra $1000 in December" 
+                 class="input input-bordered" />
+        </div>
+        <div class="modal-action">
+          <button class="btn" @click="showSaveScenarioModal = false">Cancel</button>
+          <button class="btn btn-primary" 
+                  @click="saveCurrentScenario"
+                  :disabled="!currentScenarioName.trim()">
+            Save
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="showSaveScenarioModal = false">close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
@@ -282,6 +331,48 @@ const formData = ref({
 })
 
 const minMonthlyPayment = ref(null)
+
+const scenarios = ref([])
+const currentScenarioName = ref('')
+const showSaveScenarioModal = ref(false)
+
+const saveCurrentScenario = () => {
+  if (!currentScenarioName.value.trim()) return
+  
+  // Calculate mortgage to ensure we have the latest data
+  calculateMortgage()
+  
+  const scenario = {
+    id: Date.now(),
+    name: currentScenarioName.value,
+    data: {
+      formData: JSON.parse(JSON.stringify(formData.value)),
+      results: JSON.parse(JSON.stringify(results.value)),
+      chartData: JSON.parse(JSON.stringify(chartData.value))
+    }
+  }
+  
+  scenarios.value.push(scenario)
+  showSaveScenarioModal.value = false
+  currentScenarioName.value = ''
+}
+
+const deleteScenario = (id) => {
+  scenarios.value = scenarios.value.filter(s => s.id !== id)
+}
+
+const clearScenarios = () => {
+  scenarios.value = []
+}
+
+// Pass scenarios to chart data
+const chartDataWithScenarios = computed(() => {
+  if (!chartData.value) return null
+  return {
+    ...chartData.value,
+    scenarios: scenarios.value
+  }
+})
 
 // Add a new empty additional payment
 const addAdditionalPayment = () => {

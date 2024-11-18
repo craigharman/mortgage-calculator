@@ -53,18 +53,8 @@ const paymentBreakdownData = computed(() => ({
   }]
 }));
 
-const balanceChartData = computed(() => ({
-  labels: props.chartData.timeLabels,
-  datasets: [
-    {
-      label: 'Your Loan Balance',
-      data: props.chartData.balances,
-      borderColor: '#2563eb', // blue-600
-      backgroundColor: 'rgba(37, 99, 235, 0.1)',
-      fill: true,
-      tension: 0.4,
-      spanGaps: true, // This will connect points even with gaps in data
-    },
+const balanceChartData = computed(() => {
+  const datasets = [
     {
       label: 'Standard Loan',
       data: props.chartData.standardBalances,
@@ -73,25 +63,67 @@ const balanceChartData = computed(() => ({
       fill: true,
       tension: 0.4,
       borderDash: [5, 5], // Make it a dashed line
-      spanGaps: true, // This will connect points even with gaps in data
-    },
-    {
-      label: 'Payment Events',
-      data: props.chartData.paymentEvents.map(event => ({
-        x: props.chartData.timeLabels[Math.floor(event.month / 12)],
-        y: event.balance,
-      })),
-      backgroundColor: event => 
-        event.raw?.type === 'additional' ? '#16a34a' : '#eab308', // green-600 for additional, yellow-500 for repayment
-      borderColor: event => 
-        event.raw?.type === 'additional' ? '#16a34a' : '#eab308',
-      pointStyle: event => 
-        event.raw?.type === 'additional' ? 'star' : 'triangle',
-      pointRadius: 8,
-      showLine: false, // Don't connect the points
+      spanGaps: true,
     }
   ]
-}));
+
+  // Add current scenario
+  datasets.push({
+    label: 'Current Scenario',
+    data: props.chartData.balances,
+    borderColor: '#2563eb', // blue-600
+    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    fill: true,
+    tension: 0.4,
+    spanGaps: true,
+  })
+
+  // Add saved scenarios
+  if (props.chartData.scenarios) {
+    const colors = [
+      '#16a34a', // green-600
+      '#9333ea', // purple-600
+      '#ea580c', // orange-600
+      '#0891b2', // cyan-600
+      '#4f46e5', // indigo-600
+    ]
+
+    props.chartData.scenarios.forEach((scenario, index) => {
+      const colorIndex = index % colors.length
+      datasets.push({
+        label: scenario.name,
+        data: scenario.data.chartData.balances,
+        borderColor: colors[colorIndex],
+        backgroundColor: `${colors[colorIndex]}1a`, // 10% opacity
+        fill: true,
+        tension: 0.4,
+        spanGaps: true,
+      })
+    })
+  }
+
+  // Add payment events
+  datasets.push({
+    label: 'Payment Events',
+    data: props.chartData.paymentEvents.map(event => ({
+      x: props.chartData.timeLabels[Math.floor(event.month / 12)],
+      y: event.balance,
+    })),
+    backgroundColor: event => 
+      event.raw?.type === 'additional' ? '#16a34a' : '#eab308',
+    borderColor: event => 
+      event.raw?.type === 'additional' ? '#16a34a' : '#eab308',
+    pointStyle: event => 
+      event.raw?.type === 'additional' ? 'star' : 'triangle',
+    pointRadius: 8,
+    showLine: false,
+  })
+
+  return {
+    labels: props.chartData.timeLabels,
+    datasets
+  }
+})
 
 const balanceChartOptions = computed(() => ({
   responsive: true,
@@ -147,7 +179,7 @@ const balanceChartOptions = computed(() => ({
       }
     }
   },
-}));
+}))
 
 const doughnutOptions = {
   responsive: true,
