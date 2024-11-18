@@ -711,6 +711,13 @@ console.log('Total Months:', totalMonths)
         const yearLabel = Math.floor(month / 12)
         timeLabels.push(`Year ${yearLabel}`)
       }
+
+      // Check if loan is fully paid off
+      if (balance <= 0.01 && !finalRepaymentDate) {
+        actualMonthsToRepay = month
+        finalRepaymentDate = new Date(startDate)
+        finalRepaymentDate.setMonth(startDate.getMonth() + month - 1)
+      }
     }
 
     console.log('\nFinal values:')
