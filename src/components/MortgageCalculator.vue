@@ -2,20 +2,20 @@
   <div class="container mx-auto p-4">
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
-        <h2 class="card-title text-2xl mb-6">Mortgage Calculator</h2>
+        <h2 class="card-title text-2xl mb-6 text-gray-800">Mortgage Calculator</h2>
         
         <form @submit.prevent="calculateMortgage" class="space-y-4">
           <!-- Loan Amount -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Loan Amount ($)</span>
+              <span class="label-text text-gray-800">Loan Amount ($)</span>
             </label>
             <input
               v-model.number="formData.loanAmount"
               type="number"
               min="0"
               step="1000"
-              class="input input-bordered"
+              class="input input-bordered text-gray-800"
               required
             />
           </div>
@@ -23,14 +23,14 @@
           <!-- Loan Term -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Loan Term (years)</span>
+              <span class="label-text text-gray-800">Loan Term (years)</span>
             </label>
             <input
               v-model.number="formData.loanTerm"
               type="number"
               min="1"
               max="30"
-              class="input input-bordered"
+              class="input input-bordered text-gray-800"
               required
             />
           </div>
@@ -38,14 +38,14 @@
           <!-- Interest Rate -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Interest Rate (%)</span>
+              <span class="label-text text-gray-800">Interest Rate (%)</span>
             </label>
             <input
               v-model.number="formData.interestRate"
               type="number"
               min="0"
               step="0.01"
-              class="input input-bordered"
+              class="input input-bordered text-gray-800"
               required
             />
           </div>
@@ -53,9 +53,9 @@
           <!-- Repayment Frequency -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Repayment Frequency</span>
+              <span class="label-text text-gray-800">Repayment Frequency</span>
             </label>
-            <select v-model="formData.repaymentFrequency" class="select select-bordered" required>
+            <select v-model="formData.repaymentFrequency" class="select select-bordered text-gray-800" required>
               <option value="weekly">Weekly</option>
               <option value="fortnightly">Fortnightly</option>
               <option value="monthly">Monthly</option>
@@ -65,14 +65,14 @@
           <!-- Fee Amount -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Fee Amount ($)</span>
+              <span class="label-text text-gray-800">Fee Amount ($)</span>
             </label>
             <input
               v-model.number="formData.feeAmount"
               type="number"
               min="0"
               step="0.01"
-              class="input input-bordered"
+              class="input input-bordered text-gray-800"
               required
             />
           </div>
@@ -80,9 +80,9 @@
           <!-- Fee Frequency -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Fee Frequency</span>
+              <span class="label-text text-gray-800">Fee Frequency</span>
             </label>
-            <select v-model="formData.feeFrequency" class="select select-bordered" required>
+            <select v-model="formData.feeFrequency" class="select select-bordered text-gray-800" required>
               <option value="once">Once-off</option>
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
@@ -92,26 +92,26 @@
           </div>
 
           <!-- Additional Payments Section -->
-          <div class="divider">Additional Payments</div>
+          <div class="divider text-gray-800">Additional Payments</div>
           
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Additional Payments</span>
+              <span class="label-text text-gray-800">Additional Payments</span>
             </label>
             <div class="space-y-4">
               <div v-for="(payment, index) in formData.additionalPayments" :key="index" class="flex gap-4">
                 <div class="flex-1">
-                  <input type="number" v-model="payment.amount" placeholder="Amount" class="input input-bordered w-full" />
+                  <input type="number" v-model="payment.amount" placeholder="Amount" class="input input-bordered w-full text-gray-800" />
                 </div>
                 <div class="flex-1">
-                  <select v-model="payment.month" class="select select-bordered w-full">
+                  <select v-model="payment.month" class="select select-bordered w-full text-gray-800">
                     <option v-for="(month, index) in months" :key="month" :value="index + 1">
                       {{ month }}
                     </option>
                   </select>
                 </div>
                 <div class="flex-1">
-                  <select v-model="payment.year" class="select select-bordered w-full">
+                  <select v-model="payment.year" class="select select-bordered w-full text-gray-800">
                     <option v-for="year in years" :key="year" :value="year">
                       {{ year }}
                     </option>
@@ -121,33 +121,33 @@
               </div>
             </div>
             <div class="mt-2">
-              <button @click="addAdditionalPayment" type="button" class="btn btn-outline w-full">
+              <button @click="addAdditionalPayment" type="button" class="btn btn-outline w-full text-gray-800">
                 + Add Additional Payment
               </button>
             </div>
           </div>
 
           <!-- Repayment Changes Section -->
-          <div class="divider">Repayment Changes</div>
+          <div class="divider text-gray-800">Repayment Changes</div>
           
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Repayment Changes</span>
+              <span class="label-text text-gray-800">Repayment Changes</span>
             </label>
             <div class="space-y-4">
               <div v-for="(change, index) in formData.repaymentChanges" :key="index" class="flex gap-4">
                 <div class="flex-1">
-                  <input type="number" v-model="change.amount" placeholder="New Amount" class="input input-bordered w-full" />
+                  <input type="number" v-model="change.amount" placeholder="New Amount" class="input input-bordered w-full text-gray-800" />
                 </div>
                 <div class="flex-1">
-                  <select v-model="change.month" class="select select-bordered w-full">
+                  <select v-model="change.month" class="select select-bordered w-full text-gray-800">
                     <option v-for="(month, index) in months" :key="month" :value="index + 1">
                       {{ month }}
                     </option>
                   </select>
                 </div>
                 <div class="flex-1">
-                  <select v-model="change.year" class="select select-bordered w-full">
+                  <select v-model="change.year" class="select select-bordered w-full text-gray-800">
                     <option v-for="year in years" :key="year" :value="year">
                       {{ year }}
                     </option>
@@ -157,7 +157,7 @@
               </div>
             </div>
             <div class="mt-2">
-              <button @click="addRepaymentChange" type="button" class="btn btn-outline w-full">
+              <button @click="addRepaymentChange" type="button" class="btn btn-outline w-full text-gray-800">
                 + Add Repayment Change
               </button>
             </div>
@@ -166,30 +166,30 @@
           <div class="divider"></div>
 
           <div class="form-control mt-6">
-            <button type="submit" class="btn btn-primary">Calculate</button>
+            <button type="submit" class="btn btn-primary text-gray-800">Calculate</button>
           </div>
         </form>
 
         <!-- Scenarios -->
         <div class="flex justify-end gap-2 mb-4">
-          <button class="btn btn-warning" @click="confirmReset">
+          <button class="btn btn-warning text-gray-800" @click="confirmReset">
             Reset Calculator
           </button>
-          <button class="btn btn-secondary" @click="exportToExcel">
+          <button class="btn btn-secondary text-gray-800" @click="exportToExcel">
             Export to Excel
           </button>
           <template v-if="results">
-            <button class="btn btn-primary" @click="showSaveScenarioModal = true">
+            <button class="btn btn-primary text-gray-800" @click="showSaveScenarioModal = true">
               Save Scenario
             </button>
-            <button class="btn btn-error" @click="clearScenarios" v-if="scenarios.length > 0">
+            <button class="btn btn-error text-gray-800" @click="clearScenarios" v-if="scenarios.length > 0">
               Clear All Scenarios
             </button>
           </template>
         </div>
 
         <div class="mb-4" v-if="scenarios.length > 0">
-          <h3 class="text-lg font-bold mb-2">Saved Scenarios</h3>
+          <h3 class="text-lg font-bold mb-2 text-gray-800">Saved Scenarios</h3>
           <div class="flex flex-wrap gap-2">
             <div v-for="scenario in scenarios" :key="scenario.id" 
                  class="badge badge-lg gap-2 p-4">
@@ -203,16 +203,16 @@
 
         <!-- Results Section -->
         <div v-if="results" class="mt-8 space-y-4">
-          <h3 class="text-xl font-semibold">Results</h3>
+          <h3 class="text-xl font-semibold text-gray-800">Results</h3>
           <div class="stats stats-vertical w-full lg:stats-horizontal flex-wrap">
             <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title">Minimum Repayment</div>
+              <div class="stat-title text-gray-800">Minimum Repayment</div>
               <div class="stat-value text-2xl">${{ results.monthlyPayment?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
               <div class="stat-desc">{{ formData.repaymentFrequency }}</div>
             </div>
 
             <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title">Repayment Date</div>
+              <div class="stat-title text-gray-800">Repayment Date</div>
               <div class="stat-value text-2xl">{{ results.finalRepaymentDate ? new Date(results.finalRepaymentDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : '-' }}</div>
               <div class="stat-desc text-success" v-if="results.actualMonthsToRepay < formData.loanTerm * 12">
                 {{ formData.loanTerm * 12 - results.actualMonthsToRepay }} months earlier!
@@ -220,17 +220,17 @@
             </div>
 
             <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title">Time to Repay</div>
+              <div class="stat-title text-gray-800">Time to Repay</div>
               <div class="stat-value text-2xl">{{ formatMonthsToYearsAndMonths(results.actualMonthsToRepay) }}</div>
             </div>
 
             <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title">Total Interest</div>
+              <div class="stat-title text-gray-800">Total Interest</div>
               <div class="stat-value text-2xl">${{ results.totalInterest?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
             </div>
 
             <div class="stat min-w-[200px] flex-1">
-              <div class="stat-title">Total Fees</div>
+              <div class="stat-title text-gray-800">Total Fees</div>
               <div class="stat-value text-2xl">${{ formData.feeAmount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
             </div>
           </div>
@@ -245,18 +245,18 @@
     </div>
     <dialog :class="{'modal': true, 'modal-open': showSaveScenarioModal}">
       <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Save Current Scenario</h3>
+        <h3 class="font-bold text-lg mb-4 text-gray-800">Save Current Scenario</h3>
         <div class="form-control">
           <label class="label">
-            <span class="label-text">Scenario Name</span>
+            <span class="label-text text-gray-800">Scenario Name</span>
           </label>
           <input v-model="currentScenarioName" type="text" 
                  placeholder="e.g., Extra $1000 in December" 
-                 class="input input-bordered" />
+                 class="input input-bordered text-gray-800" />
         </div>
         <div class="modal-action">
-          <button class="btn" @click="showSaveScenarioModal = false">Cancel</button>
-          <button class="btn btn-primary" 
+          <button class="btn text-gray-800" @click="showSaveScenarioModal = false">Cancel</button>
+          <button class="btn btn-primary text-gray-800" 
                   @click="saveCurrentScenario"
                   :disabled="!currentScenarioName.trim()">
             Save
@@ -269,11 +269,11 @@
     </dialog>
     <dialog :class="{'modal': true, 'modal-open': showResetModal}">
       <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Reset Calculator</h3>
+        <h3 class="font-bold text-lg mb-4 text-gray-800">Reset Calculator</h3>
         <p>Are you sure you want to reset the calculator? This will clear all saved data and scenarios.</p>
         <div class="modal-action">
-          <button class="btn" @click="showResetModal = false">Cancel</button>
-          <button class="btn btn-warning" @click="resetCalculator">
+          <button class="btn text-gray-800" @click="showResetModal = false">Cancel</button>
+          <button class="btn btn-warning text-gray-800" @click="resetCalculator">
             Reset
           </button>
         </div>
