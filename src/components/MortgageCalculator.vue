@@ -222,7 +222,7 @@
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Monthly Payment</div>
-                <div class="stat-value text-2xl">${{ displayedStats?.monthlyPayment?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-value text-2xl">${{ displayedStats.monthlyPayment?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
                 <div class="stat-desc">Minimum required payment</div>
               </div>
             </div>
@@ -230,14 +230,14 @@
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Total Interest</div>
-                <div class="stat-value text-2xl">${{ displayedStats?.totalInterest?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-value text-2xl">${{ displayedStats.totalInterest?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
               </div>
             </div>
 
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Total Fees</div>
-                <div class="stat-value text-2xl">${{ displayedStats?.totalFees?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-value text-2xl">${{ displayedStats.totalFees?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
               </div>
             </div>
 
@@ -245,15 +245,15 @@
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Time to Repay</div>
-                <div class="stat-value text-2xl">{{ formatMonthsToYearsAndMonths(displayedStats?.actualMonthsToRepay) }}</div>
+                <div class="stat-value text-2xl">{{ formatMonthsToYearsAndMonths(displayedStats.actualMonthsToRepay) }}</div>
               </div>
             </div>
 
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Payoff Date</div>
-                <div class="stat-value text-2xl">{{ displayedStats?.finalRepaymentDate ? new Date(displayedStats.finalRepaymentDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : '-' }}</div>
-                <div class="stat-desc text-success" v-if="displayedStats?.actualMonthsToRepay < formData.loanTerm * 12">
+                <div class="stat-value text-2xl">{{ displayedStats.finalRepaymentDate ? new Date(displayedStats.finalRepaymentDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : '-' }}</div>
+                <div class="stat-desc text-success" v-if="displayedStats.actualMonthsToRepay < formData.loanTerm * 12">
                   {{ formatMonthsToYearsAndMonths(formData.loanTerm * 12 - displayedStats.actualMonthsToRepay) }} earlier!
                 </div>
               </div>
@@ -262,18 +262,94 @@
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Total Savings</div>
-                <div class="stat-value text-2xl" :class="{ 'text-emerald-600': displayedStats?.totalSavings > 0 }">${{ displayedStats?.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
+                <div class="stat-value text-2xl" :class="{ 'text-emerald-600': displayedStats.totalSavings > 0 }">${{ displayedStats.totalSavings?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</div>
                 <div class="stat-desc">Compared to standard loan</div>
               </div>
             </div>
           </div>
         </div>
 
-         <!-- Graphs Section -->
+        <!-- Scenario Details Section -->
+        <div v-if="selectedScenario" class="mt-8 space-y-4">
+          <h3 class="text-xl font-semibold text-gray-800">Scenario Configuration</h3>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Loan Settings -->
+            <div class="card bg-base-100 shadow-xl">
+              <div class="card-body">
+                <h4 class="card-title text-gray-800">Loan Settings</h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Loan Amount:</span>
+                    <span class="text-gray-800">${{ selectedScenario.data.formData.loanAmount?.toLocaleString() }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Interest Rate:</span>
+                    <span class="text-gray-800">{{ selectedScenario.data.formData.interestRate }}%</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Loan Term:</span>
+                    <span class="text-gray-800">{{ selectedScenario.data.formData.loanTerm }} years</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Repayment Frequency:</span>
+                    <span class="text-gray-800">{{ selectedScenario.data.formData.repaymentFrequency }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Fee Amount:</span>
+                    <span class="text-gray-800">${{ selectedScenario.data.formData.feeAmount?.toLocaleString() }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Fee Frequency:</span>
+                    <span class="text-gray-800">{{ selectedScenario.data.formData.feeFrequency }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Additional Payments -->
+            <div class="card bg-base-100 shadow-xl">
+              <div class="card-body">
+                <h4 class="card-title text-gray-800">Additional Payments</h4>
+                <div class="space-y-2">
+                  <div v-if="!selectedScenario.data.formData.additionalPayments?.length" class="text-gray-600">
+                    No additional payments configured
+                  </div>
+                  <div v-else v-for="(payment, index) in selectedScenario.data.formData.additionalPayments" :key="index" class="flex justify-between items-center">
+                    <span class="text-gray-600">
+                      {{ formatMonthYear(payment.month, payment.year) }}:
+                    </span>
+                    <span class="text-gray-800">${{ payment.amount?.toLocaleString() }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Repayment Changes -->
+            <div class="card bg-base-100 shadow-xl">
+              <div class="card-body">
+                <h4 class="card-title text-gray-800">Repayment Changes</h4>
+                <div class="space-y-2">
+                  <div v-if="!selectedScenario.data.formData.repaymentChanges?.length" class="text-gray-600">
+                    No repayment changes configured
+                  </div>
+                  <div v-else v-for="(change, index) in selectedScenario.data.formData.repaymentChanges" :key="index" class="flex justify-between items-center">
+                    <span class="text-gray-600">
+                      {{ formatMonthYear(change.month, change.year) }}:
+                    </span>
+                    <span class="text-gray-800">${{ change.amount?.toLocaleString() }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Graphs Section -->
         <div v-if="results" class="mt-4">
-      <MortgageGraphs :chart-data="chartDataWithScenarios" />
-    </div>
-      
+          <MortgageGraphs :chart-data="chartDataWithScenarios" />
+        </div>
+        
+        </div>
       </div>
     </div>
     <dialog :class="{'modal': true, 'modal-open': showSaveScenarioModal}">
@@ -318,7 +394,6 @@
         <button @click="showResetModal = false">close</button>
       </form>
     </dialog>
-  </div>
 </template>
 
 <script setup>
@@ -366,12 +441,16 @@ const scenarios = ref([])
 const currentScenarioName = ref('')
 const showSaveScenarioModal = ref(false)
 
+const selectedScenario = computed(() => {
+  if (!selectedScenarioId.value) return null
+  return scenarios.value.find(s => s.id === selectedScenarioId.value)
+})
+
 const displayedStats = computed(() => {
-  if (!selectedScenarioId.value) {
-    return results.value
+  if (selectedScenario.value) {
+    return selectedScenario.value.data.results
   }
-  const selectedScenario = scenarios.value.find(s => s.id === selectedScenarioId.value)
-  return selectedScenario?.data.results
+  return results.value
 })
 
 const saveCurrentScenario = () => {
