@@ -255,8 +255,11 @@
                  class="input input-bordered text-gray-800" />
         </div>
         <div class="modal-action">
-          <button class="btn text-gray-800" @click="showSaveScenarioModal = false">Cancel</button>
-          <button class="btn btn-primary text-gray-800" 
+          <button class="btn btn-ghost text-gray-700"
+                  @click="showSaveScenarioModal = false">
+            Cancel
+          </button>
+          <button class="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600"
                   @click="saveCurrentScenario"
                   :disabled="!currentScenarioName.trim()">
             Save
