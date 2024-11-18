@@ -91,7 +91,10 @@
                 v-model="formData.feeFrequency"
                 class="select select-bordered w-full text-gray-800"
               >
+                <option value="weekly">Weekly</option>
+                <option value="fortnightly">Fortnightly</option>
                 <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
                 <option value="annual">Annual</option>
               </select>
             </div>
@@ -258,9 +261,9 @@
             <div class="stats shadow">
               <div class="stat">
                 <div class="stat-title text-gray-800">Payoff Date</div>
-                <div class="stat-value text-2xl">{{ displayedStats.finalRepaymentDate ? new Date(displayedStats.finalRepaymentDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : '-' }}</div>
-                <div class="stat-desc text-success" v-if="displayedStats.actualMonthsToRepay < formData.loanTerm * 12">
-                  {{ formatMonthsToYearsAndMonths(formData.loanTerm * 12 - displayedStats.actualMonthsToRepay) }} earlier!
+                <div class="stat-value text-2xl">{{ formatDate(displayedStats.finalRepaymentDate) }}</div>
+                <div class="stat-desc">
+                  <span v-if="displayedStats.timeSavedText">{{ displayedStats.timeSavedText }}</span>
                 </div>
               </div>
             </div>
@@ -429,7 +432,8 @@ const results = ref({
   totalFees: null,
   actualMonthsToRepay: null,
   finalRepaymentDate: null,
-  totalSavings: null
+  totalSavings: null,
+  timeSavedText: null
 })
 
 const chartData = ref({
@@ -837,7 +841,8 @@ const calculateMortgage = () => {
     totalFees: null,
     actualMonthsToRepay: null,
     finalRepaymentDate: null,
-    totalSavings: null
+    totalSavings: null,
+    timeSavedText: null
   }
 
   if (!formData.value.loanAmount || !formData.value.interestRate || !formData.value.loanTerm) {
@@ -856,61 +861,112 @@ const calculateMortgage = () => {
   let loanBalance = formData.value.loanAmount
   let totalInterestPaid = 0
   let monthsToRepay = 0
-  let currentDate = new Date()
+  let actualMonthsToRepay = null
+  let startDate = new Date()
   let standardLoanBalance = formData.value.loanAmount
   let standardTotalInterest = 0
-  const balances = []
-  const standardBalances = []
-  const timeLabels = []
+  const balances = [loanBalance] // Start with initial balance
+  const standardBalances = [standardLoanBalance] // Start with initial balance
+  const timeLabels = ['Start']
   const paymentEvents = []
 
   // Calculate monthly fee if applicable
-  const monthlyFee = formData.value.feeFrequency === 'monthly' ? formData.value.feeAmount : 
-                     formData.value.feeFrequency === 'annual' ? formData.value.feeAmount / 12 : 0
+  const getMonthlyFeeEquivalent = () => {
+    if (!formData.value.feeAmount) return 0;
+    
+    switch (formData.value.feeFrequency) {
+      case 'weekly':
+        return (formData.value.feeAmount * 52) / 12;
+      case 'fortnightly':
+        return (formData.value.feeAmount * 26) / 12;
+      case 'monthly':
+        return formData.value.feeAmount;
+      case 'quarterly':
+        return formData.value.feeAmount / 3;
+      case 'annual':
+        return formData.value.feeAmount / 12;
+      default:
+        return 0;
+    }
+  }
 
-  // Track total fees paid
-  let totalFeesPaid = 0
-
+  const monthlyFeeEquivalent = getMonthlyFeeEquivalent();
+  let totalFeesPaid = 0;
+  
   // Process each month until loan is paid off or term is reached
-  while (loanBalance > 0 && monthsToRepay < totalMonths) {
-    const month = monthsToRepay % 12
-    const year = Math.floor(monthsToRepay / 12) + currentDate.getFullYear()
+  while (monthsToRepay < totalMonths) {
+    const month = monthsToRepay % 12;
+    const year = Math.floor(monthsToRepay / 12) + startDate.getFullYear();
+    const currentMonthDate = new Date(year, month);
     
     // Calculate interest for this month
-    const monthlyInterest = loanBalance * monthlyInterestRate
-    totalInterestPaid += monthlyInterest
-    
-    // Calculate standard loan interest
-    const standardMonthlyInterest = standardLoanBalance * monthlyInterestRate
-    standardTotalInterest += standardMonthlyInterest
+    const monthlyInterest = loanBalance * monthlyInterestRate;
+    const standardMonthlyInterest = standardLoanBalance * monthlyInterestRate;
     
     // Get additional payment for this month if any
     const additionalPayment = formData.value.additionalPayments.find(
       p => p.month === month + 1 && p.year === year
-    )?.amount || 0
+    )?.amount || 0;
     
     // Get repayment change for this month if any
     const repaymentChange = formData.value.repaymentChanges.find(
       p => p.month === month + 1 && p.year === year
-    )
+    );
     
     // Calculate payment for this month
-    let monthlyPayment = repaymentChange ? repaymentChange.amount : baseMonthlyPayment
+    let monthlyPayment = repaymentChange ? repaymentChange.amount : baseMonthlyPayment;
     
-    // Add monthly fee if applicable
-    if (monthlyFee > 0) {
-      totalFeesPaid += monthlyFee
+    // Apply fees if loan is still active
+    if (loanBalance > 0) {
+      if (formData.value.feeAmount > 0) {
+        switch (formData.value.feeFrequency) {
+          case 'weekly':
+            totalFeesPaid += formData.value.feeAmount * (52/12);
+            break;
+          case 'fortnightly':
+            totalFeesPaid += formData.value.feeAmount * (26/12);
+            break;
+          case 'monthly':
+            totalFeesPaid += formData.value.feeAmount;
+            break;
+          case 'quarterly':
+            if (month % 3 === 0) {
+              totalFeesPaid += formData.value.feeAmount;
+            }
+            break;
+          case 'annual':
+            if (month === 0) {
+              totalFeesPaid += formData.value.feeAmount;
+            }
+            break;
+        }
+      }
+      
+      // Track interest for actual loan
+      totalInterestPaid += monthlyInterest;
+    }
+    
+    // Track interest for standard loan
+    if (standardLoanBalance > 0) {
+      standardTotalInterest += standardMonthlyInterest;
     }
     
     // Apply payments
-    let totalPayment = monthlyPayment + additionalPayment
-    loanBalance = Math.max(0, loanBalance - (totalPayment - monthlyInterest))
-    standardLoanBalance = Math.max(0, standardLoanBalance - (baseMonthlyPayment - standardMonthlyInterest))
+    let totalPayment = monthlyPayment + additionalPayment;
     
-    // Record balances and labels
-    balances.push(loanBalance)
-    standardBalances.push(standardLoanBalance)
-    timeLabels.push(formatMonthYear(month + 1, year))
+    // Update loan balances
+    if (loanBalance > 0) {
+      loanBalance = Math.max(0, loanBalance - (totalPayment - monthlyInterest));
+      
+      // Check if loan is just paid off
+      if (loanBalance === 0 && actualMonthsToRepay === null) {
+        actualMonthsToRepay = monthsToRepay + 1; // Add 1 since we're 0-indexed
+      }
+    }
+    
+    if (standardLoanBalance > 0) {
+      standardLoanBalance = Math.max(0, standardLoanBalance - (baseMonthlyPayment - standardMonthlyInterest));
+    }
     
     // Record payment events
     if (additionalPayment > 0) {
@@ -920,8 +976,9 @@ const calculateMortgage = () => {
         balance: loanBalance,
         month: month + 1,
         year: year
-      })
+      });
     }
+    
     if (repaymentChange) {
       paymentEvents.push({
         type: 'change',
@@ -929,31 +986,61 @@ const calculateMortgage = () => {
         balance: loanBalance,
         month: month + 1,
         year: year
-      })
+      });
     }
     
-    monthsToRepay++
+    // Record balances at the end of each year or when paid off
+    if (month === 11 || monthsToRepay === totalMonths - 1) {
+      balances.push(loanBalance);
+      standardBalances.push(standardLoanBalance);
+      timeLabels.push(`Year ${Math.floor(monthsToRepay / 12) + 1}`);
+    }
+    
+    monthsToRepay++;
   }
 
-  // Calculate final repayment date
-  const finalRepaymentDate = new Date()
-  finalRepaymentDate.setMonth(finalRepaymentDate.getMonth() + monthsToRepay)
+  // If loan wasn't paid off, use total months
+  if (actualMonthsToRepay === null) {
+    actualMonthsToRepay = totalMonths;
+  }
+
+  // Calculate final repayment date and time saved
+  const finalRepaymentDate = new Date(startDate);
+  finalRepaymentDate.setMonth(startDate.getMonth() + actualMonthsToRepay - 1); // Subtract 1 to get to the last payment month
+  
+  const monthsSaved = totalMonths - actualMonthsToRepay;
+  const yearsSaved = Math.floor(monthsSaved / 12);
+  const remainingMonthsSaved = monthsSaved % 12;
+  
+  let timeSavedText = '';
+  if (monthsSaved > 0) {
+    if (yearsSaved > 0) {
+      timeSavedText += `${yearsSaved} year${yearsSaved !== 1 ? 's' : ''}`;
+      if (remainingMonthsSaved > 0) {
+        timeSavedText += ` and ${remainingMonthsSaved} month${remainingMonthsSaved !== 1 ? 's' : ''}`;
+      }
+    } else {
+      timeSavedText = `${remainingMonthsSaved} month${remainingMonthsSaved !== 1 ? 's' : ''}`;
+    }
+    timeSavedText += ' earlier than scheduled';
+  }
 
   // Calculate total savings compared to standard repayment
-  const standardTotalRepayment = baseMonthlyPayment * totalMonths
-  const actualTotalRepayment = standardTotalRepayment - (standardLoanBalance - loanBalance)
-  const totalSavings = standardTotalRepayment - actualTotalRepayment
+  const standardTotalRepayment = baseMonthlyPayment * totalMonths;
+  const actualTotalRepayment = formData.value.loanAmount + totalInterestPaid + totalFeesPaid;
+  const totalSavings = standardTotalRepayment - actualTotalRepayment;
 
   // Update results
   results.value = {
     monthlyPayment: baseMonthlyPayment,
     totalInterest: totalInterestPaid,
-    totalRepayment: formData.value.loanAmount + totalInterestPaid,
+    totalRepayment: actualTotalRepayment,
     totalFees: totalFeesPaid,
-    actualMonthsToRepay: monthsToRepay,
+    actualMonthsToRepay: actualMonthsToRepay,
     finalRepaymentDate: finalRepaymentDate.toISOString(),
+    timeSavedText: timeSavedText,
     totalSavings: totalSavings
-  }
+  };
 
   // Update chart data
   chartData.value = {
@@ -961,7 +1048,7 @@ const calculateMortgage = () => {
     standardBalances,
     timeLabels,
     paymentEvents
-  }
+  };
 }
 
 // Format months to years and months string
@@ -972,6 +1059,17 @@ const formatMonthsToYearsAndMonths = (totalMonths) => {
   if (months === 0) return `${years} years`
   if (years === 0) return `${months} months`
   return `${years} years, ${months} months`
+}
+
+// Format date to a readable string
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
 }
 
 // Load data from localStorage on mount
@@ -1028,7 +1126,8 @@ const resetCalculator = () => {
     totalFees: null,
     actualMonthsToRepay: null,
     finalRepaymentDate: null,
-    totalSavings: null
+    totalSavings: null,
+    timeSavedText: null
   }
   chartData.value = {
     balances: [],
