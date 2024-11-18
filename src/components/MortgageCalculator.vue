@@ -621,14 +621,42 @@ console.log('Total Months:', totalMonths)
         return dateA - dateB
       })
 
+    // Sort additional payments by date
+    const sortedAdditionalPayments = [...formData.value.additionalPayments]
+      .sort((a, b) => {
+        const dateA = new Date(a.year, a.month - 1)
+        const dateB = new Date(b.year, b.month - 1)
+        return dateA - dateB
+      })
+
     // Calculate loan amortization
     let currentPayment = baseMonthlyPayment
     let currentRepaymentChangeIndex = 0
-
-    // Initialize variables for standard loan calculation
+    let currentAdditionalPaymentIndex = 0
     let standardMonthlyPayment = baseMonthlyPayment
 
     for (let month = 1; month <= totalMonths && (balance > 0.01 || standardBalance > 0.01); month++) {
+      // Calculate standard loan balance
+      if (standardBalance > 0.01) {
+        const standardInterestPayment = standardBalance * monthlyRate
+        let standardPrincipalPayment = standardMonthlyPayment - standardInterestPayment
+        
+        if (standardPrincipalPayment > standardBalance) {
+          standardPrincipalPayment = standardBalance
+          standardMonthlyPayment = standardBalance + standardInterestPayment
+        }
+        
+        standardBalance = Math.max(0, standardBalance - standardPrincipalPayment)
+
+        if (month % 12 === 0) {
+          console.log(`\nYear ${month/12} Standard Loan:`)
+          console.log('Standard Balance:', standardBalance)
+          console.log('Standard Interest Payment:', standardInterestPayment)
+          console.log('Standard Principal Payment:', standardPrincipalPayment)
+          console.log('Standard Monthly Payment:', standardMonthlyPayment)
+        }
+      }
+
       // Check if there's a repayment change for this month
       const currentDate = new Date(startDate)
       currentDate.setMonth(startDate.getMonth() + month - 1)
@@ -650,43 +678,23 @@ console.log('Total Months:', totalMonths)
         }
       }
 
-      // Calculate actual loan balance
-      if (balance > 0.01) {
-        const interestPayment = balance * monthlyRate
-        let principalPayment = currentPayment - interestPayment
+      // Check for additional payments this month
+      while (currentAdditionalPaymentIndex < sortedAdditionalPayments.length) {
+        const payment = sortedAdditionalPayments[currentAdditionalPaymentIndex]
+        const paymentDate = new Date(payment.year, payment.month - 1)
         
-        // Adjust final payment if needed
-        if (principalPayment > balance) {
-          principalPayment = balance
-          currentPayment = balance + interestPayment
+        if (paymentDate <= currentDate) {
+          balance = Math.max(0, balance - payment.amount)
+          totalPrincipalPaid += payment.amount
+          paymentEvents.push({
+            type: 'additionalPayment',
+            month,
+            amount: payment.amount
+          })
+          currentAdditionalPaymentIndex++
+        } else {
+          break
         }
-        
-        // Update running totals
-        totalInterestPaid += interestPayment
-        totalPrincipalPaid += principalPayment
-        balance -= principalPayment
-      }
-
-      // Calculate standard loan balance
-      if (standardBalance > 0.01) {
-        const standardInterestPayment = standardBalance * monthlyRate
-        let standardPrincipalPayment = standardMonthlyPayment - standardInterestPayment
-        
-        // Adjust final payment if needed
-        if (standardPrincipalPayment > standardBalance) {
-          standardPrincipalPayment = standardBalance
-          standardMonthlyPayment = standardBalance + standardInterestPayment
-        }
-        
-        standardBalance = Math.max(0, standardBalance - standardPrincipalPayment)
-
-        if (month % 12 === 0) {
-  console.log(`\nYear ${month/12} Standard Loan:`)
-  console.log('Standard Balance:', standardBalance)
-  console.log('Standard Interest Payment:', standardInterestPayment)
-  console.log('Standard Principal Payment:', standardPrincipalPayment)
-  console.log('Standard Monthly Payment:', standardMonthlyPayment)
-}
       }
 
       // Calculate actual loan balance
