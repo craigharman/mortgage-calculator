@@ -4,10 +4,10 @@
       <div class="card-body">
         <h3 class="card-title">Payment Breakdown</h3>
         <div class="relative h-64">
-          <DoughnutChart 
+          <PieChart 
             v-if="hasData"
             :data="paymentBreakdownData" 
-            :options="doughnutOptions"
+            :options="pieOptions"
           />
           <div v-else class="text-center text-gray-500 mt-4">
             Enter loan details and click calculate to see the breakdown
@@ -28,7 +28,7 @@
 
 <script setup>
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, Filler } from 'chart.js';
-import { Line as LineChart, Doughnut as DoughnutChart } from 'vue-chartjs';
+import { Line as LineChart, Pie as PieChart } from 'vue-chartjs';
 import { computed } from 'vue';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, Filler);
@@ -309,19 +309,12 @@ const balanceChartOptions = {
   }
 }
 
-const doughnutOptions = {
+const pieOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      position: 'bottom',
-      labels: {
-        padding: 20,
-        usePointStyle: true,
-        font: {
-          size: 12
-        }
-      }
+      position: 'top',
     },
     tooltip: {
       backgroundColor: 'rgba(31, 41, 55, 0.9)',
@@ -331,17 +324,16 @@ const doughnutOptions = {
       borderWidth: 1,
       padding: 12,
       boxPadding: 6,
-      usePointStyle: true,
       callbacks: {
         label: function(context) {
           const value = context.raw;
-          const total = context.dataset.data.reduce((acc, curr) => acc + curr, 0);
+          const total = context.dataset.data.reduce((a, b) => a + b, 0);
           const percentage = ((value / total) * 100).toFixed(1);
           const formattedValue = new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
           }).format(value);
           return `${context.label}: ${formattedValue} (${percentage}%)`;
         }
