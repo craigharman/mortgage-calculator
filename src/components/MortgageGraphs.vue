@@ -196,10 +196,34 @@ const balanceChartData = computed(() => {
     })
   }
 
+  // Function to trim trailing zeros but keep the first one
+  const trimTrailingZeros = (balances) => {
+    const result = [...balances]
+    let foundFirstZero = false
+    for (let i = 0; i < result.length; i++) {
+      if (result[i] === 0) {
+        if (!foundFirstZero) {
+          foundFirstZero = true
+        } else {
+          result[i] = null
+        }
+      }
+    }
+    return result
+  }
+
+  // Trim trailing zeros from all balance arrays
+  const trimmedBalances = trimTrailingZeros(extendedBalances)
+  const trimmedStandardBalances = trimTrailingZeros(extendedStandardBalances)
+  const trimmedScenarioBalances = {}
+  Object.entries(extendedScenarioBalances).forEach(([key, balances]) => {
+    trimmedScenarioBalances[key] = trimTrailingZeros(balances)
+  })
+
   const datasets = [
     {
       label: 'Standard Loan',
-      data: extendedStandardBalances,
+      data: trimmedStandardBalances,
       borderColor: colors.standard.line,
       backgroundColor: colors.standard.fill,
       fill: true,
@@ -207,7 +231,7 @@ const balanceChartData = computed(() => {
     },
     {
       label: 'Current',
-      data: extendedBalances,
+      data: trimmedBalances,
       borderColor: colors.current.line,
       backgroundColor: colors.current.fill,
       fill: true,
@@ -216,7 +240,7 @@ const balanceChartData = computed(() => {
   ]
 
   if (props.chartData.scenarioBalances) {
-    Object.entries(extendedScenarioBalances).forEach(([key, balances], index) => {
+    Object.entries(trimmedScenarioBalances).forEach(([key, balances], index) => {
       datasets.push({
         label: key,
         data: balances,
@@ -231,8 +255,8 @@ const balanceChartData = computed(() => {
   if (props.chartData.paymentEvents && props.chartData.paymentEvents.length > 0) {
     // Add event markers for current balance and scenarios
     const allBalances = [
-      { balances: extendedBalances, label: 'Current', color: colors.current.line },
-      ...Object.entries(extendedScenarioBalances).map(([key, balances], index) => ({
+      { balances: trimmedBalances, label: 'Current', color: colors.current.line },
+      ...Object.entries(trimmedScenarioBalances).map(([key, balances], index) => ({
         balances,
         label: key,
         color: colors.scenarios[index % colors.scenarios.length].line
