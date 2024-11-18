@@ -1,5 +1,5 @@
 <template>
-  <div v-if="chartData" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+  <div class="flex flex-col gap-4">
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
         <h3 class="card-title">Payment Breakdown</h3>
@@ -9,18 +9,20 @@
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
         <h3 class="card-title">Loan Balance Over Time</h3>
-        <LineChart :data="balanceChartData" :options="balanceChartOptions" />
+        <div class="h-96"> 
+          <LineChart :data="balanceChartData" :options="balanceChartOptions" />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title } from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, Filler } from 'chart.js';
 import { Line as LineChart, Doughnut as DoughnutChart } from 'vue-chartjs';
 import { computed } from 'vue';
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, Filler);
 
 const props = defineProps({
   chartData: {
@@ -93,6 +95,7 @@ const balanceChartData = computed(() => ({
 
 const balanceChartOptions = computed(() => ({
   responsive: true,
+  maintainAspectRatio: false,
   interaction: {
     intersect: false,
     mode: 'index',
@@ -112,6 +115,12 @@ const balanceChartOptions = computed(() => ({
     },
     legend: {
       position: 'top',
+      align: 'center',
+      labels: {
+        padding: 20,
+        usePointStyle: true,
+        pointStyle: 'circle'
+      }
     },
   },
   scales: {
@@ -119,6 +128,10 @@ const balanceChartOptions = computed(() => ({
       beginAtZero: true,
       ticks: {
         callback: (value) => `$${value.toLocaleString()}`
+      },
+      grid: {
+        drawBorder: false,
+        color: 'rgba(0, 0, 0, 0.1)'
       }
     },
     x: {
@@ -127,6 +140,10 @@ const balanceChartOptions = computed(() => ({
           const label = context.tick.label || '';
           return label.includes('paid)') ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)';
         }
+      },
+      ticks: {
+        maxRotation: 45,
+        minRotation: 45
       }
     }
   },
