@@ -94,126 +94,73 @@
           <!-- Additional Payments Section -->
           <div class="divider">Additional Payments</div>
           
-          <div v-for="(payment, index) in formData.additionalPayments" :key="index" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end border border-base-300 rounded-lg p-4">
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Amount ($)</span>
-              </label>
-              <input
-                v-model.number="payment.amount"
-                type="number"
-                min="0"
-                step="100"
-                class="input input-bordered"
-                required
-              />
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Additional Payments</span>
+            </label>
+            <div class="space-y-4">
+              <div v-for="(payment, index) in formData.additionalPayments" :key="index" class="flex gap-4">
+                <div class="flex-1">
+                  <input type="number" v-model="payment.amount" placeholder="Amount" class="input input-bordered w-full" />
+                </div>
+                <div class="flex-1">
+                  <select v-model="payment.month" class="select select-bordered w-full">
+                    <option v-for="(month, index) in months" :key="month" :value="index + 1">
+                      {{ month }}
+                    </option>
+                  </select>
+                </div>
+                <div class="flex-1">
+                  <select v-model="payment.year" class="select select-bordered w-full">
+                    <option v-for="year in years" :key="year" :value="year">
+                      {{ year }}
+                    </option>
+                  </select>
+                </div>
+                <button @click="removeAdditionalPayment(index)" class="btn btn-ghost">×</button>
+              </div>
             </div>
-
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Month</span>
-              </label>
-              <select v-model="payment.month" class="select select-bordered" required>
-                <option v-for="(month, index) in months" :key="month" :value="index + 1">
-                  {{ month }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Year</span>
-              </label>
-              <select v-model="payment.year" class="select select-bordered" required>
-                <option v-for="year in years" :key="year" :value="year">
-                  {{ year }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-control">
-              <button 
-                type="button" 
-                class="btn btn-error" 
-                @click="removeAdditionalPayment(index)"
-              >
-                Remove
+            <div class="mt-2">
+              <button @click="addAdditionalPayment" type="button" class="btn btn-outline w-full">
+                + Add Additional Payment
               </button>
             </div>
-          </div>
-
-          <div class="form-control">
-            <button 
-              type="button" 
-              class="btn btn-secondary" 
-              @click="addAdditionalPayment"
-            >
-              Add Additional Payment
-            </button>
           </div>
 
           <!-- Repayment Changes Section -->
           <div class="divider">Repayment Changes</div>
           
-          <div v-for="(change, index) in formData.repaymentChanges" :key="index" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end border border-base-300 rounded-lg p-4">
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">New Repayment Amount ($)</span>
-              </label>
-              <input
-                v-model.number="change.amount"
-                type="number"
-                min="0"
-                step="100"
-                class="input input-bordered"
-                required
-              />
-              <label class="label" v-if="displayMinPayment !== null && change.amount < displayMinPayment">
-                <span class="label-text-alt text-error">Minimum: ${{ displayMinPayment.toFixed(2) }}/{{ formData.repaymentFrequency === 'monthly' ? 'month' : formData.repaymentFrequency.slice(0, -2) }}</span>
-              </label>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Repayment Changes</span>
+            </label>
+            <div class="space-y-4">
+              <div v-for="(change, index) in formData.repaymentChanges" :key="index" class="flex gap-4">
+                <div class="flex-1">
+                  <input type="number" v-model="change.amount" placeholder="New Amount" class="input input-bordered w-full" />
+                </div>
+                <div class="flex-1">
+                  <select v-model="change.month" class="select select-bordered w-full">
+                    <option v-for="(month, index) in months" :key="month" :value="index + 1">
+                      {{ month }}
+                    </option>
+                  </select>
+                </div>
+                <div class="flex-1">
+                  <select v-model="change.year" class="select select-bordered w-full">
+                    <option v-for="year in years" :key="year" :value="year">
+                      {{ year }}
+                    </option>
+                  </select>
+                </div>
+                <button @click="removeRepaymentChange(index)" class="btn btn-ghost">×</button>
+              </div>
             </div>
-
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Start Month</span>
-              </label>
-              <select v-model="change.month" class="select select-bordered" required>
-                <option v-for="(month, index) in months" :key="month" :value="index + 1">
-                  {{ month }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Start Year</span>
-              </label>
-              <select v-model="change.year" class="select select-bordered" required>
-                <option v-for="year in years" :key="year" :value="year">
-                  {{ year }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-control">
-              <button 
-                type="button" 
-                class="btn btn-error" 
-                @click="removeRepaymentChange(index)"
-              >
-                Remove
+            <div class="mt-2">
+              <button @click="addRepaymentChange" type="button" class="btn btn-outline w-full">
+                + Add Repayment Change
               </button>
             </div>
-          </div>
-
-          <div class="form-control">
-            <button 
-              type="button" 
-              class="btn btn-secondary" 
-              @click="addRepaymentChange"
-            >
-              Add Repayment Change
-            </button>
           </div>
 
           <div class="divider"></div>
@@ -685,3 +632,92 @@ const resetCalculator = () => {
   showResetModal.value = false
 }
 </script>
+
+<style>
+/* Base button styles - only apply white text to non-outline buttons */
+.btn:not(.btn-outline):not(.btn-ghost) {
+  @apply text-white;
+}
+
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 border-blue-600 hover:border-blue-700 text-white;
+}
+
+.btn-warning {
+  @apply bg-slate-600 hover:bg-slate-700 border-slate-600 hover:border-slate-700 text-white;
+}
+
+.btn-error {
+  @apply bg-blue-800 hover:bg-blue-900 border-blue-800 hover:border-blue-900 text-white;
+}
+
+.btn-ghost {
+  @apply text-blue-600 hover:bg-blue-100 hover:text-blue-700;
+}
+
+.btn-secondary {
+  @apply bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600 text-white;
+}
+
+/* Add additional payment button */
+.btn-outline {
+  @apply border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white hover:border-blue-500;
+}
+
+.badge {
+  @apply bg-blue-100 text-blue-800 border-blue-200;
+}
+
+.stats {
+  @apply bg-blue-50;
+}
+
+.stat-title {
+  @apply text-blue-600;
+}
+
+.stat-value {
+  @apply text-blue-900;
+}
+
+.stat-desc {
+  @apply text-blue-700;
+}
+
+.modal-box {
+  @apply bg-white border-2 border-blue-100;
+}
+
+/* Updated input styles with neutral grays */
+.input-bordered {
+  @apply border-gray-300 focus:border-gray-400 focus:ring-gray-400;
+}
+
+.select-bordered {
+  @apply border-gray-300 focus:border-gray-400 focus:ring-gray-400;
+}
+
+.label-text {
+  @apply text-gray-800;
+}
+
+/* Additional input focus styles */
+.input:focus, .select:focus {
+  @apply outline-none ring-2 ring-gray-400 border-gray-400;
+}
+
+/* Make sure all buttons in the form have good contrast */
+.form-control .btn:not(.btn-outline):not(.btn-ghost) {
+  @apply text-white;
+}
+
+/* Style for input labels */
+.label {
+  @apply mb-1;
+}
+
+/* Divider styling */
+.divider {
+  @apply text-gray-800;
+}
+</style>

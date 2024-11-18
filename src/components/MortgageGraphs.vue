@@ -31,6 +31,70 @@ const props = defineProps({
   }
 });
 
+const baseOptions = {
+  responsive: true,
+  interaction: {
+    mode: 'index',
+    intersect: false,
+  },
+  plugins: {
+    legend: {
+      position: 'top',
+    },
+    tooltip: {
+      backgroundColor: 'rgba(30, 58, 138, 0.8)', // dark blue background
+      titleColor: 'white',
+      bodyColor: 'white',
+      borderColor: 'rgba(59, 130, 246, 0.5)', // blue border
+      borderWidth: 1,
+    },
+    filler: {
+      propagate: false
+    }
+  },
+  scales: {
+    x: {
+      grid: {
+        color: 'rgba(226, 232, 240, 0.3)', // subtle grid lines
+      },
+    },
+    y: {
+      grid: {
+        color: 'rgba(226, 232, 240, 0.3)', // subtle grid lines
+      },
+      ticks: {
+        callback: value => {
+          return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(value);
+        }
+      }
+    }
+  }
+}
+
+// Professional color palette
+const colors = {
+  standard: {
+    line: 'rgba(30, 58, 138, 0.7)', // dark blue
+    fill: 'rgba(30, 58, 138, 0.1)'
+  },
+  current: {
+    line: 'rgba(59, 130, 246, 1)', // medium blue
+    fill: 'rgba(59, 130, 246, 0.1)'
+  },
+  scenarios: [
+    { line: 'rgba(14, 165, 233, 0.7)', fill: 'rgba(14, 165, 233, 0.1)' }, // sky blue
+    { line: 'rgba(56, 189, 248, 0.7)', fill: 'rgba(56, 189, 248, 0.1)' }, // lighter blue
+    { line: 'rgba(2, 132, 199, 0.7)', fill: 'rgba(2, 132, 199, 0.1)' },   // darker blue
+    { line: 'rgba(51, 65, 85, 0.7)', fill: 'rgba(51, 65, 85, 0.1)' },     // slate
+    { line: 'rgba(71, 85, 105, 0.7)', fill: 'rgba(71, 85, 105, 0.1)' }    // darker slate
+  ]
+}
+
 const paymentBreakdownData = computed(() => ({
   labels: ['Principal', 'Interest', 'Fees'],
   datasets: [{
@@ -40,14 +104,14 @@ const paymentBreakdownData = computed(() => ({
       props.chartData.totalFees
     ],
     backgroundColor: [
-      'rgba(54, 162, 235, 0.8)',
-      'rgba(255, 99, 132, 0.8)',
-      'rgba(255, 206, 86, 0.8)'
+      colors.standard.fill,
+      colors.current.fill,
+      colors.scenarios[0].fill
     ],
     borderColor: [
-      'rgba(54, 162, 235, 1)',
-      'rgba(255, 99, 132, 1)',
-      'rgba(255, 206, 86, 1)'
+      colors.standard.line,
+      colors.current.line,
+      colors.scenarios[0].line
     ],
     borderWidth: 1
   }]
@@ -58,8 +122,8 @@ const balanceChartData = computed(() => {
     {
       label: 'Standard Loan',
       data: props.chartData.standardBalances,
-      borderColor: '#dc2626', // red-600
-      backgroundColor: 'rgba(220, 38, 38, 0.1)',
+      borderColor: colors.standard.line,
+      backgroundColor: colors.standard.fill,
       fill: true,
       tension: 0.4,
       borderDash: [5, 5], // Make it a dashed line
@@ -71,8 +135,8 @@ const balanceChartData = computed(() => {
   datasets.push({
     label: 'Current Scenario',
     data: props.chartData.balances,
-    borderColor: '#2563eb', // blue-600
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    borderColor: colors.current.line,
+    backgroundColor: colors.current.fill,
     fill: true,
     tension: 0.4,
     spanGaps: true,
@@ -80,21 +144,13 @@ const balanceChartData = computed(() => {
 
   // Add saved scenarios
   if (props.chartData.scenarios) {
-    const colors = [
-      '#16a34a', // green-600
-      '#9333ea', // purple-600
-      '#ea580c', // orange-600
-      '#0891b2', // cyan-600
-      '#4f46e5', // indigo-600
-    ]
-
     props.chartData.scenarios.forEach((scenario, index) => {
-      const colorIndex = index % colors.length
+      const colorIndex = index % colors.scenarios.length
       datasets.push({
         label: scenario.name,
         data: scenario.data.chartData.balances,
-        borderColor: colors[colorIndex],
-        backgroundColor: `${colors[colorIndex]}1a`, // 10% opacity
+        borderColor: colors.scenarios[colorIndex].line,
+        backgroundColor: colors.scenarios[colorIndex].fill,
         fill: true,
         tension: 0.4,
         spanGaps: true,
@@ -110,9 +166,9 @@ const balanceChartData = computed(() => {
       y: event.balance,
     })),
     backgroundColor: event => 
-      event.raw?.type === 'additional' ? '#16a34a' : '#eab308',
+      event.raw?.type === 'additional' ? colors.scenarios[0].fill : colors.scenarios[1].fill,
     borderColor: event => 
-      event.raw?.type === 'additional' ? '#16a34a' : '#eab308',
+      event.raw?.type === 'additional' ? colors.scenarios[0].line : colors.scenarios[1].line,
     pointStyle: event => 
       event.raw?.type === 'additional' ? 'star' : 'triangle',
     pointRadius: 8,
@@ -126,14 +182,20 @@ const balanceChartData = computed(() => {
 })
 
 const balanceChartOptions = computed(() => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: {
-    intersect: false,
-    mode: 'index',
-  },
+  ...baseOptions,
   plugins: {
+    ...baseOptions.plugins,
+    legend: {
+      ...baseOptions.plugins.legend,
+      align: 'center',
+      labels: {
+        padding: 20,
+        usePointStyle: true,
+        pointStyle: 'circle'
+      }
+    },
     tooltip: {
+      ...baseOptions.plugins.tooltip,
       callbacks: {
         label: (context) => {
           if (context.dataset.label === 'Payment Events') {
@@ -145,45 +207,23 @@ const balanceChartOptions = computed(() => ({
         }
       }
     },
-    legend: {
-      position: 'top',
-      align: 'center',
-      labels: {
-        padding: 20,
-        usePointStyle: true,
-        pointStyle: 'circle'
-      }
-    },
   },
   scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        callback: (value) => `$${value.toLocaleString()}`
-      },
-      grid: {
-        drawBorder: false,
-        color: 'rgba(0, 0, 0, 0.1)'
-      }
-    },
+    ...baseOptions.scales,
     x: {
-      grid: {
-        color: (context) => {
-          const label = context.tick.label || '';
-          return label.includes('paid)') ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)';
-        }
-      },
+      ...baseOptions.scales.x,
       ticks: {
         maxRotation: 45,
         minRotation: 45
       }
     }
-  },
+  }
 }))
 
 const doughnutOptions = {
-  responsive: true,
+  ...baseOptions,
   plugins: {
+    ...baseOptions.plugins,
     legend: {
       position: 'bottom'
     },
@@ -194,32 +234,6 @@ const doughnutOptions = {
           const total = context.dataset.data.reduce((a, b) => a + b, 0);
           const percentage = ((value / total) * 100).toFixed(1);
           return `${context.label}: $${value.toLocaleString()} (${percentage}%)`;
-        }
-      }
-    }
-  }
-};
-
-const lineOptions = {
-  responsive: true,
-  plugins: {
-    legend: {
-      position: 'bottom'
-    },
-    tooltip: {
-      callbacks: {
-        label: function(context) {
-          return `Balance: $${context.raw.toLocaleString()}`;
-        }
-      }
-    }
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        callback: function(value) {
-          return '$' + value.toLocaleString();
         }
       }
     }
