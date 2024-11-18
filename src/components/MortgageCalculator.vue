@@ -175,6 +175,9 @@
           <button class="btn btn-warning" @click="confirmReset">
             Reset Calculator
           </button>
+          <button class="btn btn-secondary" @click="exportToExcel">
+            Export to Excel
+          </button>
           <template v-if="results">
             <button class="btn btn-primary" @click="showSaveScenarioModal = true">
               Save Scenario
@@ -285,6 +288,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import MortgageGraphs from './MortgageGraphs.vue'
+import * as XLSX from 'xlsx'
 
 const STORAGE_KEY = 'mortgage-calculator-state'
 const showResetModal = ref(false)
@@ -370,6 +374,142 @@ const addRepaymentChange = () => {
 // Remove a repayment change by index
 const removeRepaymentChange = (index) => {
   formData.value.repaymentChanges.splice(index, 1)
+}
+
+// Function to format currency for Excel
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value).replace('$', '')
+}
+
+// Function to format month and year
+const formatMonthYear = (month, year) => {
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ]
+  return `${months[month]} ${year}`
+}
+
+// Function to export data to Excel
+const exportToExcel = () => {
+  // Create workbook and worksheet
+  const wb = XLSX.utils.book_new()
+  
+  // Main Results Sheet
+  const mainResults = [
+    ['Mortgage Calculator Results'],
+    [''],
+    ['Input Parameters'],
+    ['Loan Amount', formatCurrency(formData.value.loanAmount)],
+    ['Interest Rate', `${formData.value.interestRate}%`],
+    ['Loan Term', `${formData.value.loanTerm} years`],
+    ['Fees', formatCurrency(formData.value.feeAmount)],
+    [''],
+    ['Results'],
+    ['Monthly Payment', formatCurrency(results.value.minimumRepayment)],
+    ['Total Interest', formatCurrency(results.value.totalInterest)],
+    ['Total Cost', formatCurrency(results.value.totalInterest + formData.value.loanAmount)],
+    ['Payoff Date', results.value.repaymentDate],
+    ['Total Years', results.value.timeToRepay]
+  ]
+  
+  // Add saved scenarios if they exist
+  if (scenarios.value.length > 0) {
+    mainResults.push([''])
+    mainResults.push(['Saved Scenarios'])
+    mainResults.push(['Name', 'Monthly Payment', 'Total Interest', 'Total Cost', 'Years'])
+    scenarios.value.forEach(scenario => {
+      mainResults.push([
+        scenario.name,
+        formatCurrency(scenario.data.results.minimumRepayment),
+        formatCurrency(scenario.data.results.totalInterest),
+        formatCurrency(scenario.data.results.totalInterest + scenario.data.formData.loanAmount),
+        scenario.data.results.timeToRepay
+      ])
+    })
+  }
+  
+  // Add additional payments if they exist
+  if (formData.value.additionalPayments.length > 0) {
+    mainResults.push([''])
+    mainResults.push(['Additional Payments'])
+    mainResults.push(['Year', 'Amount'])
+    formData.value.additionalPayments.forEach(payment => {
+      mainResults.push([
+        payment.year,
+        formatCurrency(payment.amount)
+      ])
+    })
+  }
+  
+  // Add repayment changes if they exist
+  if (formData.value.repaymentChanges.length > 0) {
+    mainResults.push([''])
+    mainResults.push(['Repayment Changes'])
+    mainResults.push(['Date', 'New Amount'])
+    formData.value.repaymentChanges.forEach(change => {
+      mainResults.push([
+        formatMonthYear(change.month - 1, change.year),
+        formatCurrency(change.amount)
+      ])
+    })
+  }
+
+  // Create the main results worksheet
+  const wsMain = XLSX.utils.aoa_to_sheet(mainResults)
+  
+  // Set column widths
+  const wscols = [
+    {wch: 20}, // A
+    {wch: 15}, // B
+    {wch: 15}, // C
+    {wch: 15}, // D
+    {wch: 15}  // E
+  ]
+  wsMain['!cols'] = wscols
+  
+  // Add the worksheet to the workbook
+  XLSX.utils.book_append_sheet(wb, wsMain, 'Summary')
+  
+  // Create amortization schedule sheet if it exists
+  if (chartData.value && chartData.value.balances.length > 0) {
+    const scheduleData = [
+      ['Year', 'Beginning Balance', 'Payment', 'Principal', 'Interest', 'Additional Payment', 'Ending Balance']
+    ]
+    
+    for (let i = 0; i < chartData.value.balances.length; i++) {
+      scheduleData.push([
+        chartData.value.timeLabels[i],
+        formatCurrency(chartData.value.balances[i]),
+        formatCurrency(chartData.value.standardBalances[i]),
+        formatCurrency(chartData.value.balances[i] - chartData.value.standardBalances[i]),
+        formatCurrency(chartData.value.standardBalances[i] - chartData.value.balances[i]),
+        formatCurrency(chartData.value.balances[i] - chartData.value.standardBalances[i]),
+        formatCurrency(chartData.value.balances[i])
+      ])
+    }
+    
+    const wsSchedule = XLSX.utils.aoa_to_sheet(scheduleData)
+    wsSchedule['!cols'] = [
+      {wch: 8},  // Year
+      {wch: 15}, // Beginning Balance
+      {wch: 12}, // Payment
+      {wch: 12}, // Principal
+      {wch: 12}, // Interest
+      {wch: 18}, // Additional Payment
+      {wch: 15}  // Ending Balance
+    ]
+    
+    XLSX.utils.book_append_sheet(wb, wsSchedule, 'Amortization Schedule')
+  }
+  
+  // Generate the Excel file
+  XLSX.writeFile(wb, 'mortgage-calculator-results.xlsx')
 }
 
 // Generate array of months for select
