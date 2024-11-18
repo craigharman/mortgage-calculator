@@ -247,7 +247,7 @@ const balanceChartData = computed(() => {
         const yearIndex = Math.floor(event.month / 12)
         if (yearIndex < eventPoints.length) {
           eventPoints[yearIndex] = balances[yearIndex]
-          eventLabels[yearIndex] = `${event.type === 'repaymentChange' ? 'Repayment Change' : 'Additional Payment'}: $${event.amount.toLocaleString()}`
+          eventLabels[yearIndex] = `${label} - ${event.type === 'repaymentChange' ? 'Repayment Change' : 'Additional Payment'}: $${event.amount.toLocaleString()}`
         }
       })
 
@@ -279,6 +279,14 @@ const balanceChartOptions = {
   ...baseOptions,
   plugins: {
     ...baseOptions.plugins,
+    legend: {
+      ...baseOptions.plugins.legend,
+      labels: {
+        filter: function(legendItem, data) {
+          return !legendItem.text.includes('Payment Events')
+        }
+      }
+    },
     tooltip: {
       ...baseOptions.plugins.tooltip,
       callbacks: {
