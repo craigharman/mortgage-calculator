@@ -357,6 +357,56 @@
         <div v-if="results" class="mt-4">
           <MortgageGraphs :chart-data="chartDataWithScenarios" />
         </div>
+
+        <!-- What If Section -->
+<div class="mb-8 p-4 bg-base-200 rounded-lg">
+  <div class="flex items-center gap-4 mb-4">
+    <h3 class="text-lg font-bold text-gray-800">What If Analysis</h3>
+    <label class="cursor-pointer label">
+      <input type="checkbox" v-model="whatIfEnabled" class="toggle toggle-primary" />
+    </label>
+  </div>
+  
+  <div v-if="whatIfEnabled" class="space-y-4">
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Interest Rate (%)</span>
+        <span class="label-text-alt">{{ whatIfInterestRate?.toFixed(2) }}%</span>
+      </label>
+      <input 
+        type="range" 
+        v-model.number="whatIfInterestRate" 
+        class="range range-primary" 
+        min="0" 
+        max="15" 
+        step="0.05"
+      />
+      <div class="w-full flex justify-between text-xs px-2 mt-1">
+        <span>0%</span>
+        <span>7.5%</span>
+        <span>15%</span>
+      </div>
+    </div>
+
+    <div v-if="whatIfResults" class="stats shadow">
+      <div class="stat">
+        <div class="stat-title">Monthly Payment Difference</div>
+        <div class="stat-value" :class="{'text-success': whatIfResults.monthlyPayment <= results.monthlyPayment, 'text-error': whatIfResults.monthlyPayment > results.monthlyPayment}">
+          {{ formatCurrency(whatIfResults.monthlyPayment - results.monthlyPayment) }}
+        </div>
+        <div class="stat-desc">Compared to current rate</div>
+      </div>
+      
+      <div class="stat">
+        <div class="stat-title">Total Interest Difference</div>
+        <div class="stat-value" :class="{'text-success': whatIfResults.totalInterest <= results.totalInterest, 'text-error': whatIfResults.totalInterest > results.totalInterest}">
+          {{ formatCurrency(whatIfResults.totalInterest - results.totalInterest) }}
+        </div>
+        <div class="stat-desc">Compared to current rate</div>
+      </div>
+    </div>
+  </div>
+</div>
         
         </div>
       </div>
@@ -437,10 +487,11 @@ const results = ref({
 })
 
 const chartData = ref({
-  balances: [],
-  standardBalances: [],
-  timeLabels: [],
-  paymentEvents: []
+  labels: [],
+  datasets: [],
+  loanAmount: 0,
+  totalInterest: 0,
+  totalFees: 0
 })
 
 const minimumRepayment = ref(0)
@@ -463,32 +514,194 @@ const displayedStats = computed(() => {
   return results.value
 })
 
+// Add whatIf state
+const whatIfEnabled = ref(false)
+const whatIfInterestRate = ref(formData.value.interestRate)
+const whatIfResults = ref(null)
+const whatIfChartData = ref(null)
+
+// Watch for whatIf changes and recalculate
+watch([whatIfEnabled, whatIfInterestRate], ([enabled, rate]) => {
+  if (enabled && rate !== null) {
+    calculateWhatIf(rate)
+  } else {
+    whatIfResults.value = null
+    whatIfChartData.value = null
+  }
+})
+
+// Function to calculate whatIf scenario
+const calculateWhatIf = (rate) => {
+  if (!rate) return
+  
+  // Store original interest rate
+  const originalRate = formData.value.interestRate
+  
+  // Temporarily set the interest rate to whatIf rate
+  formData.value.interestRate = rate
+  
+  // Calculate with whatIf rate
+  calculateMortgage()
+  
+  // Store results in whatIf variables
+  whatIfResults.value = { ...results.value }
+  whatIfChartData.value = {
+    labels: [...chartData.value.labels],
+    datasets: chartData.value.datasets.map(dataset => ({
+      ...dataset,
+      data: [...dataset.data]  // Deep copy the data array
+    })),
+    loanAmount: chartData.value.loanAmount,
+    totalInterest: chartData.value.totalInterest,
+    totalFees: chartData.value.totalFees
+  }
+  
+  // Restore original rate and recalculate
+  formData.value.interestRate = originalRate
+  calculateMortgage()
+}
+
+// Update chartDataWithScenarios to include both scenarios and whatIf data
+const chartDataWithScenarios = computed(() => {
+  if (!chartData.value || !chartData.value.datasets) {
+    return {
+      labels: [],
+      datasets: [],
+      loanAmount: 0,
+      totalInterest: 0,
+      totalFees: 0
+    }
+  }
+
+  const baseData = {
+    labels: [...chartData.value.labels],
+    datasets: [],
+    loanAmount: chartData.value.loanAmount,
+    totalInterest: chartData.value.totalInterest,
+    totalFees: chartData.value.totalFees
+  };
+
+  // Add current loan balance dataset
+  if (chartData.value.datasets[0]) {
+    baseData.datasets.push({
+      ...chartData.value.datasets[0],
+      data: [...chartData.value.datasets[0].data],
+      label: 'Current Plan',
+      borderColor: '#3B82F6',
+      backgroundColor: '#3B82F622'
+    });
+  }
+
+  // Add standard loan dataset
+  if (chartData.value.datasets[1]) {
+    baseData.datasets.push({
+      ...chartData.value.datasets[1],
+      data: [...chartData.value.datasets[1].data],
+      label: 'Standard Loan',
+      borderColor: '#9CA3AF',
+      backgroundColor: '#9CA3AF22'
+    });
+  }
+
+  // Add scenario data if available
+  if (selectedScenarioId.value) {
+    const scenario = scenarios.value.find(s => s.id === selectedScenarioId.value);
+    if (scenario && scenario.data.chartData.datasets) {
+      const scenarioDatasets = scenario.data.chartData.datasets;
+      
+      // Add scenario's loan balance
+      if (scenarioDatasets[0]) {
+        baseData.datasets.push({
+          ...scenarioDatasets[0],
+          data: [...scenarioDatasets[0].data],
+          label: `${scenario.name}`,
+          borderColor: '#4CAF50',
+          backgroundColor: '#4CAF5022'
+        });
+      }
+
+      // Add scenario's standard loan
+      if (scenarioDatasets[1]) {
+        baseData.datasets.push({
+          ...scenarioDatasets[1],
+          data: [...scenarioDatasets[1].data],
+          label: `${scenario.name} (Standard)`,
+          borderColor: '#9CA3AF',
+          backgroundColor: '#9CA3AF22'
+        });
+      }
+
+      if (!whatIfEnabled.value) {
+        // Only update payment breakdown data if what-if is not enabled
+        baseData.loanAmount = scenario.data.chartData.loanAmount;
+        baseData.totalInterest = scenario.data.chartData.totalInterest;
+        baseData.totalFees = scenario.data.chartData.totalFees;
+      }
+    }
+  }
+  
+  // Add whatIf data if enabled
+  if (whatIfEnabled.value && whatIfChartData.value && whatIfChartData.value.datasets) {
+    // Add what-if loan balance
+    if (whatIfChartData.value.datasets[0]) {
+      baseData.datasets.push({
+        ...whatIfChartData.value.datasets[0],
+        data: [...whatIfChartData.value.datasets[0].data],
+        label: `What If (${whatIfInterestRate.value}%)`,
+        borderColor: '#FF6B6B',
+        backgroundColor: '#FF6B6B22'
+      });
+    }
+
+    // Add what-if standard loan
+    if (whatIfChartData.value.datasets[1]) {
+      baseData.datasets.push({
+        ...whatIfChartData.value.datasets[1],
+        data: [...whatIfChartData.value.datasets[1].data],
+        label: `What If (${whatIfInterestRate.value}%) Standard`,
+        borderColor: '#9CA3AF',
+        backgroundColor: '#9CA3AF22'
+      });
+    }
+
+    // Update payment breakdown data
+    baseData.loanAmount = whatIfChartData.value.loanAmount;
+    baseData.totalInterest = whatIfChartData.value.totalInterest;
+    baseData.totalFees = whatIfChartData.value.totalFees;
+  }
+  
+  return baseData;
+});
+
 const saveCurrentScenario = () => {
   if (!currentScenarioName.value.trim()) return
   
   // Calculate mortgage to ensure we have the latest data
   calculateMortgage()
-  
-  // Calculate standard loan total for savings comparison
-  const monthlyRate = formData.value.interestRate / 1200
-  const numberOfPayments = formData.value.loanTerm * 12
-  const standardMonthlyPayment = -PMT(monthlyRate, numberOfPayments, formData.value.loanAmount)
-  const standardLoanTotal = standardMonthlyPayment * numberOfPayments
-  
-  const scenario = {
+
+  // Create a new scenario object with deep copy of chart data
+  const newScenario = {
     id: Date.now(),
     name: currentScenarioName.value,
     data: {
-      formData: JSON.parse(JSON.stringify(formData.value)),
-      results: {
-        ...results.value,
-        totalSavings: standardLoanTotal - results.value.totalRepayment
-      },
-      chartData: JSON.parse(JSON.stringify(chartData.value))
+      formData: { ...formData.value },
+      results: { ...results.value },
+      chartData: {
+        labels: [...chartData.value.labels],
+        datasets: chartData.value.datasets.map(dataset => ({
+          ...dataset,
+          data: [...dataset.data]  // Deep copy the data array
+        })),
+        loanAmount: chartData.value.loanAmount,
+        totalInterest: chartData.value.totalInterest,
+        totalFees: chartData.value.totalFees
+      }
     }
   }
+
+  // Add to scenarios list
+  scenarios.value.push(newScenario)
   
-  scenarios.value.push(scenario)
   showSaveScenarioModal.value = false
   currentScenarioName.value = ''
   
@@ -512,22 +725,6 @@ const clearScenarios = () => {
   saveToLocalStorage()
 }
 
-// Pass all chart data through the computed property
-const chartDataWithScenarios = computed(() => {
-  if (!chartData.value) return null;
-  return {
-    ...chartData.value,
-    loanAmount: formData.value.loanAmount,
-    totalInterest: results.value.totalInterest,
-    totalFees: results.value.totalFees,
-    scenarioBalances: scenarios.value.reduce((acc, scenario) => {
-      acc[scenario.name] = scenario.data.chartData.balances;
-      return acc;
-    }, {}),
-    interestRate: formData.value.interestRate,
-    minimumRepayment: minimumRepayment.value
-  };
-});
 
 // Add a new empty additional payment
 const addAdditionalPayment = () => {
@@ -657,11 +854,11 @@ const exportToExcel = () => {
   XLSX.utils.book_append_sheet(wb, wsMain, createSheetName('Current', ''))
 
   // Create amortization schedule sheet for current scenario
-  if (chartData.value && chartData.value.balances.length > 0) {
+  if (chartData.value && chartData.value.datasets[0] && chartData.value.datasets[0].data.length > 0) {
     const scheduleData = createAmortizationSchedule(
-      chartData.value.balances,
-      chartData.value.standardBalances,
-      chartData.value.timeLabels
+      chartData.value.datasets[0].data,
+      chartData.value.datasets[0].data,
+      chartData.value.labels
     )
     const wsSchedule = XLSX.utils.aoa_to_sheet(scheduleData)
     wsSchedule['!cols'] = [
@@ -738,11 +935,11 @@ const exportToExcel = () => {
       XLSX.utils.book_append_sheet(wb, wsScenario, createSheetName(scenario.name, ' Sum'))
 
       // Scenario Amortization Schedule
-      if (scenario.data.chartData && scenario.data.chartData.balances.length > 0) {
+      if (scenario.data.chartData && scenario.data.chartData.datasets[0] && scenario.data.chartData.datasets[0].data.length > 0) {
         const scheduleData = createAmortizationSchedule(
-          scenario.data.chartData.balances,
-          scenario.data.chartData.standardBalances,
-          scenario.data.chartData.timeLabels
+          scenario.data.chartData.datasets[0].data,
+          scenario.data.chartData.datasets[0].data,
+          scenario.data.chartData.labels
         )
         const wsSchedule = XLSX.utils.aoa_to_sheet(scheduleData)
         wsSchedule['!cols'] = [
@@ -1044,10 +1241,25 @@ const calculateMortgage = () => {
 
   // Update chart data
   chartData.value = {
-    balances,
-    standardBalances,
-    timeLabels,
-    paymentEvents
+    labels: timeLabels,
+    datasets: [{
+      label: 'Loan Balance',
+      data: balances,
+      borderColor: 'rgb(59, 130, 246)',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      fill: true,
+      tension: 0.4
+    }, {
+      label: 'Standard Loan',
+      data: standardBalances,
+      borderColor: 'rgb(156, 163, 175)',  // gray-400
+      backgroundColor: 'rgba(156, 163, 175, 0.1)',
+      fill: true,
+      tension: 0.4
+    }],
+    loanAmount: formData.value.loanAmount,
+    totalInterest: totalInterestPaid,
+    totalFees: totalFeesPaid
   };
 }
 
@@ -1130,11 +1342,12 @@ const resetCalculator = () => {
     timeSavedText: null
   }
   chartData.value = {
-    balances: [],
-    standardBalances: [],
-    timeLabels: [],
-    paymentEvents: []
-  }
+  labels: [],
+  datasets: [],
+  loanAmount: 0,
+  totalInterest: 0,
+  totalFees: 0
+}
   scenarios.value = []
   
   // Clear localStorage

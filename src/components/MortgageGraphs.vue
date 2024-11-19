@@ -5,7 +5,7 @@
         <h3 class="card-title text-gray-800">Payment Breakdown</h3>
         <div class="relative h-64">
           <PieChart 
-            v-if="hasData"
+            v-if="hasPaymentData"
             :data="paymentBreakdownData" 
             :options="pieOptions"
           />
@@ -19,7 +19,11 @@
       <div class="card-body">
         <h3 class="card-title text-gray-800">Loan Balance Over Time</h3>
         <div class="h-96"> 
-          <LineChart :data="balanceChartData" :options="balanceChartOptions" />
+          <LineChart 
+            v-if="hasBalanceData"
+            :data="balanceChartData" 
+            :options="balanceChartOptions" 
+          />
         </div>
       </div>
     </div>
@@ -38,39 +42,45 @@ const props = defineProps({
     type: Object,
     required: true,
     default: () => ({
+      labels: [],
+      datasets: [],
       loanAmount: 0,
       totalInterest: 0,
-      totalFees: 0,
-      balances: [],
-      standardBalances: [],
-      timeLabels: [],
-      paymentEvents: [],
-      interestRate: 0,
-      minimumRepayment: 0
+      totalFees: 0
     })
   }
 });
 
-const hasData = computed(() => {
-  return props.chartData && 
-         (props.chartData.loanAmount > 0 || 
-          props.chartData.totalInterest > 0 || 
-          props.chartData.totalFees > 0);
+const hasBalanceData = computed(() => {
+  return props.chartData.datasets && props.chartData.datasets.length > 0;
+});
+
+const hasPaymentData = computed(() => {
+  console.log('Chart Data:', props.chartData);
+  console.log('Loan Amount:', Number(props.chartData.loanAmount));
+  console.log('Total Interest:', Number(props.chartData.totalInterest));
+  console.log('Total Fees:', Number(props.chartData.totalFees));
+  return Number(props.chartData.loanAmount) > 0 || 
+         Number(props.chartData.totalInterest) > 0 || 
+         Number(props.chartData.totalFees) > 0;
 });
 
 const paymentBreakdownData = computed(() => {
   const loanAmount = Number(props.chartData.loanAmount) || 0;
   const totalInterest = Number(props.chartData.totalInterest) || 0;
   const totalFees = Number(props.chartData.totalFees) || 0;
-
+  const totalAmount = loanAmount + totalInterest + totalFees;
+  
+  console.log('Payment Breakdown Data:', { loanAmount, totalInterest, totalFees, totalAmount });
+  
   return {
     labels: ['Principal', 'Interest', 'Fees'],
     datasets: [{
       data: [loanAmount, totalInterest, totalFees],
       backgroundColor: [
-        'rgba(16, 185, 129, 0.7)',
-        'rgba(245, 158, 11, 0.7)',
-        'rgba(79, 70, 229, 0.7)'
+        'rgba(16, 185, 129, 0.7)',  // emerald-500
+        'rgba(245, 158, 11, 0.7)',  // amber-500
+        'rgba(79, 70, 229, 0.7)'    // indigo-600
       ],
       borderColor: [
         'rgba(16, 185, 129, 1)',
@@ -158,146 +168,14 @@ const colors = {
 }
 
 const balanceChartData = computed(() => {
-  const fullTimeLabels = ['Start']
-  for (let i = 1; i <= Math.max(30, Math.ceil(props.chartData.timeLabels.length / 12)); i++) {
-    fullTimeLabels.push(`Year ${i}`)
+  if (!props.chartData.datasets || !props.chartData.labels) {
+    return {
+      labels: [],
+      datasets: []
+    };
   }
-
-  const extendedBalances = [...props.chartData.balances]
-  const extendedStandardBalances = [...props.chartData.standardBalances]
-  
-  while (extendedBalances.length < fullTimeLabels.length) {
-    extendedBalances.push(0)
-  }
-
-  if (extendedStandardBalances.length < fullTimeLabels.length) {
-    const monthlyRate = (props.chartData.interestRate / 100) / 12
-    const monthlyPayment = props.chartData.minimumRepayment
-    let balance = extendedStandardBalances[extendedStandardBalances.length - 1]
-    
-    while (extendedStandardBalances.length < fullTimeLabels.length) {
-      for (let i = 0; i < 12 && balance > 0; i++) {
-        const interestPayment = balance * monthlyRate
-        const principalPayment = monthlyPayment - interestPayment
-        balance = Math.max(0, balance - principalPayment)
-      }
-      extendedStandardBalances.push(balance)
-    }
-  }
-
-  const extendedScenarioBalances = {}
-  if (props.chartData.scenarioBalances) {
-    Object.entries(props.chartData.scenarioBalances).forEach(([key, balances]) => {
-      const extended = [...balances]
-      while (extended.length < fullTimeLabels.length) {
-        extended.push(0)  
-      }
-      extendedScenarioBalances[key] = extended
-    })
-  }
-
-  // Function to trim trailing zeros but keep the first one
-  const trimTrailingZeros = (balances) => {
-    const result = [...balances]
-    let foundFirstZero = false
-    for (let i = 0; i < result.length; i++) {
-      if (result[i] === 0) {
-        if (!foundFirstZero) {
-          foundFirstZero = true
-        } else {
-          result[i] = null
-        }
-      }
-    }
-    return result
-  }
-
-  // Trim trailing zeros from all balance arrays
-  const trimmedBalances = trimTrailingZeros(extendedBalances)
-  const trimmedStandardBalances = trimTrailingZeros(extendedStandardBalances)
-  const trimmedScenarioBalances = {}
-  Object.entries(extendedScenarioBalances).forEach(([key, balances]) => {
-    trimmedScenarioBalances[key] = trimTrailingZeros(balances)
-  })
-
-  const datasets = [
-    {
-      label: 'Standard Loan',
-      data: trimmedStandardBalances,
-      borderColor: colors.standard.line,
-      backgroundColor: colors.standard.fill,
-      fill: true,
-      tension: 0.4
-    },
-    {
-      label: 'Current',
-      data: trimmedBalances,
-      borderColor: colors.current.line,
-      backgroundColor: colors.current.fill,
-      fill: true,
-      tension: 0.4
-    }
-  ]
-
-  if (props.chartData.scenarioBalances) {
-    Object.entries(trimmedScenarioBalances).forEach(([key, balances], index) => {
-      datasets.push({
-        label: key,
-        data: balances,
-        borderColor: colors.scenarios[index % colors.scenarios.length].line,
-        backgroundColor: colors.scenarios[index % colors.scenarios.length].fill,
-        fill: true,
-        tension: 0.4
-      })
-    })
-  }
-
-  if (props.chartData.paymentEvents && props.chartData.paymentEvents.length > 0) {
-    // Add event markers for current balance and scenarios
-    const allBalances = [
-      { balances: trimmedBalances, label: 'Current', color: colors.current.line },
-      ...Object.entries(trimmedScenarioBalances).map(([key, balances], index) => ({
-        balances,
-        label: key,
-        color: colors.scenarios[index % colors.scenarios.length].line
-      }))
-    ]
-
-    allBalances.forEach(({ balances, label, color }) => {
-      const eventPoints = new Array(fullTimeLabels.length).fill(null)
-      const eventLabels = new Array(fullTimeLabels.length).fill(null)
-      
-      props.chartData.paymentEvents.forEach(event => {
-        const yearIndex = Math.floor(event.month / 12)
-        if (yearIndex < eventPoints.length) {
-          eventPoints[yearIndex] = balances[yearIndex]
-          eventLabels[yearIndex] = `${label} - ${event.type === 'repaymentChange' ? 'Repayment Change' : 'Additional Payment'}: $${event.amount.toLocaleString()}`
-        }
-      })
-
-      datasets.push({
-        label: `Payment Events (${label})`,
-        data: eventPoints,
-        borderColor: color,
-        backgroundColor: color,
-        pointStyle: 'circle',
-        pointRadius: 6,
-        pointHoverRadius: 8,
-        showLine: false,
-        tooltip: {
-          callbacks: {
-            label: (context) => eventLabels[context.dataIndex] || ''
-          }
-        }
-      })
-    })
-  }
-
-  return {
-    labels: fullTimeLabels,
-    datasets
-  }
-})
+  return props.chartData;
+});
 
 const balanceChartOptions = {
   ...baseOptions,
@@ -358,10 +236,13 @@ const balanceChartOptions = {
 
 const pieOptions = {
   responsive: true,
-  maintainAspectRatio: false,
   plugins: {
     legend: {
-      position: 'top',
+      position: 'bottom',
+      labels: {
+        usePointStyle: true,
+        padding: 20
+      }
     },
     tooltip: {
       backgroundColor: 'rgba(31, 41, 55, 0.9)',
@@ -379,10 +260,10 @@ const pieOptions = {
           const formattedValue = new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
           }).format(value);
-          return `${context.label}: ${formattedValue} (${percentage}%)`;
+          return `${formattedValue} (${percentage}%)`;
         }
       }
     }
