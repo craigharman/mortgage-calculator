@@ -201,9 +201,9 @@
           <h3 class="text-lg font-bold mb-2 text-gray-800">Saved Scenarios</h3>
           <div class="flex flex-wrap gap-2">
             <div v-for="scenario in scenarios" :key="scenario.id" 
-                 class="badge badge-lg gap-2 p-4">
+                 class="badge badge-lg gap-2 p-4 flex items-center">
               <span>{{ scenario.name }}</span>
-              <button class="btn btn-ghost btn-xs" @click="deleteScenario(scenario.id)">
+              <button class="btn btn-ghost btn-xs p-0 min-h-0 h-auto flex items-center justify-center" @click="deleteScenario(scenario.id)">
                 ×
               </button>
             </div>
