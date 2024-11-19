@@ -17,7 +17,7 @@
                 v-model.number="formData.loanAmount"
                 class="input input-bordered w-full text-gray-800"
                 min="0"
-                step="1000"
+                step="1"
                 required
               />
             </div>
@@ -854,6 +854,14 @@ const calculateMortgage = () => {
   const totalMonths = formData.value.loanTerm * 12
   const baseMonthlyPayment = -PMT(monthlyInterestRate, totalMonths, formData.value.loanAmount)
   
+  console.log('Initial values:', {
+    loanAmount: formData.value.loanAmount,
+    interestRate: formData.value.interestRate,
+    monthlyInterestRate,
+    baseMonthlyPayment,
+    repaymentChange: formData.value.repaymentChanges[0]?.amount
+  })
+  
   // Store minimum monthly payment for validation
   minMonthlyPayment.value = baseMonthlyPayment
   
@@ -909,12 +917,26 @@ const calculateMortgage = () => {
     )?.amount || 0;
     
     // Get repayment change for this month if any
-    const repaymentChange = formData.value.repaymentChanges.find(
-      p => p.month === month + 1 && p.year === year
-    );
-    
+    const repaymentChange = formData.value.repaymentChanges.find(p => {
+      const changeDate = new Date(p.year, p.month - 1); // Convert to 0-based month
+      const currentDate = new Date(year, month);
+      return currentDate >= changeDate;
+    });
+
     // Calculate payment for this month
     let monthlyPayment = repaymentChange ? repaymentChange.amount : baseMonthlyPayment;
+    
+    // For debugging the first few months
+    if (monthsToRepay < 3) {
+      console.log(`Month ${monthsToRepay + 1}:`, {
+        monthlyInterest,
+        monthlyPayment,
+        additionalPayment,
+        totalPayment: monthlyPayment + additionalPayment,
+        loanBalanceBefore: loanBalance,
+        loanBalanceAfter: loanBalance + monthlyInterest - (monthlyPayment + additionalPayment)
+      })
+    }
     
     // Apply fees if loan is still active
     if (loanBalance > 0) {
@@ -956,7 +978,7 @@ const calculateMortgage = () => {
     
     // Update loan balances
     if (loanBalance > 0) {
-      loanBalance = Math.max(0, loanBalance - (totalPayment - monthlyInterest));
+      loanBalance = Math.max(0, loanBalance + monthlyInterest - totalPayment);
       
       // Check if loan is just paid off
       if (loanBalance === 0 && actualMonthsToRepay === null) {
@@ -965,7 +987,7 @@ const calculateMortgage = () => {
     }
     
     if (standardLoanBalance > 0) {
-      standardLoanBalance = Math.max(0, standardLoanBalance - (baseMonthlyPayment - standardMonthlyInterest));
+      standardLoanBalance = Math.max(0, standardLoanBalance + standardMonthlyInterest - baseMonthlyPayment);
     }
     
     // Record payment events
