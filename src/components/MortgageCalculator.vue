@@ -603,42 +603,24 @@ const chartDataWithScenarios = computed(() => {
     });
   }
 
-  // Add scenario data if available
-  if (selectedScenarioId.value) {
-    const scenario = scenarios.value.find(s => s.id === selectedScenarioId.value);
-    if (scenario && scenario.data.chartData.datasets) {
-      const scenarioDatasets = scenario.data.chartData.datasets;
+  // Add all scenarios
+  scenarios.value.forEach((scenario, index) => {
+    if (scenario.data.chartData && scenario.data.chartData.balances) {
+      // Generate a unique color for each scenario
+      const hue = (120 + (index * 40)) % 360; // Start from green (120) and rotate around the color wheel
+      const scenarioColor = `hsl(${hue}, 60%, 45%)`;
       
       // Add scenario's loan balance
-      if (scenarioDatasets[0]) {
-        baseData.datasets.push({
-          ...scenarioDatasets[0],
-          data: [...scenarioDatasets[0].data],
-          label: `${scenario.name}`,
-          borderColor: '#4CAF50',
-          backgroundColor: '#4CAF5022'
-        });
-      }
-
-      // Add scenario's standard loan
-      if (scenarioDatasets[1]) {
-        baseData.datasets.push({
-          ...scenarioDatasets[1],
-          data: [...scenarioDatasets[1].data],
-          label: `${scenario.name} (Standard)`,
-          borderColor: '#9CA3AF',
-          backgroundColor: '#9CA3AF22'
-        });
-      }
-
-      if (!whatIfEnabled.value) {
-        // Only update payment breakdown data if what-if is not enabled
-        baseData.loanAmount = scenario.data.chartData.loanAmount;
-        baseData.totalInterest = scenario.data.chartData.totalInterest;
-        baseData.totalFees = scenario.data.chartData.totalFees;
-      }
+      baseData.datasets.push({
+        label: scenario.name,
+        data: [...scenario.data.chartData.balances],
+        borderColor: scenarioColor,
+        backgroundColor: `${scenarioColor}22`,
+        fill: true,
+        tension: 0.4
+      });
     }
-  }
+  });
   
   // Add whatIf data if enabled
   if (whatIfEnabled.value && whatIfChartData.value && whatIfChartData.value.datasets) {
@@ -652,19 +634,17 @@ const chartDataWithScenarios = computed(() => {
         backgroundColor: '#FF6B6B22'
       });
     }
+  }
 
-    // Add what-if standard loan
-    if (whatIfChartData.value.datasets[1]) {
-      baseData.datasets.push({
-        ...whatIfChartData.value.datasets[1],
-        data: [...whatIfChartData.value.datasets[1].data],
-        label: `What If (${whatIfInterestRate.value}%) Standard`,
-        borderColor: '#9CA3AF',
-        backgroundColor: '#9CA3AF22'
-      });
+  // Update payment breakdown data based on selected scenario
+  if (selectedScenarioId.value && !whatIfEnabled.value) {
+    const selectedScenario = scenarios.value.find(s => s.id === selectedScenarioId.value);
+    if (selectedScenario) {
+      baseData.loanAmount = selectedScenario.data.chartData.loanAmount;
+      baseData.totalInterest = selectedScenario.data.chartData.totalInterest;
+      baseData.totalFees = selectedScenario.data.chartData.totalFees;
     }
-
-    // Update payment breakdown data
+  } else if (whatIfEnabled.value && whatIfChartData.value) {
     baseData.loanAmount = whatIfChartData.value.loanAmount;
     baseData.totalInterest = whatIfChartData.value.totalInterest;
     baseData.totalFees = whatIfChartData.value.totalFees;
@@ -688,10 +668,7 @@ const saveCurrentScenario = () => {
       results: { ...results.value },
       chartData: {
         labels: [...chartData.value.labels],
-        datasets: chartData.value.datasets.map(dataset => ({
-          ...dataset,
-          data: [...dataset.data]  // Deep copy the data array
-        })),
+        balances: [...chartData.value.datasets[0].data],  // Save just the balances array
         loanAmount: chartData.value.loanAmount,
         totalInterest: chartData.value.totalInterest,
         totalFees: chartData.value.totalFees
@@ -935,10 +912,10 @@ const exportToExcel = () => {
       XLSX.utils.book_append_sheet(wb, wsScenario, createSheetName(scenario.name, ' Sum'))
 
       // Scenario Amortization Schedule
-      if (scenario.data.chartData && scenario.data.chartData.datasets[0] && scenario.data.chartData.datasets[0].data.length > 0) {
+      if (scenario.data.chartData && scenario.data.chartData.balances && scenario.data.chartData.balances.length > 0) {
         const scheduleData = createAmortizationSchedule(
-          scenario.data.chartData.datasets[0].data,
-          scenario.data.chartData.datasets[0].data,
+          scenario.data.chartData.balances,
+          scenario.data.chartData.balances,
           scenario.data.chartData.labels
         )
         const wsSchedule = XLSX.utils.aoa_to_sheet(scheduleData)
