@@ -858,22 +858,43 @@ const calculateMortgage = () => {
     totalMonths
   );
 
-  // Initialize tracking variables
+  // Calculate standard loan amortization first (completely separate from scenario)
+  const standardBalances = [formData.value.loanAmount];
+  let standardLoanBalance = formData.value.loanAmount;
+  let standardTotalInterest = 0;
+  
+  // Calculate standard loan for entire term
+  for (let month = 0; month < totalMonths; month++) {
+    const standardMonthlyInterest = standardLoanBalance * monthlyInterestRate;
+    standardTotalInterest += standardMonthlyInterest;
+    
+    const standardRemainingWithInterest = standardLoanBalance + standardMonthlyInterest;
+    if (standardRemainingWithInterest <= baseMonthlyPayment) {
+      standardLoanBalance = 0;
+    } else {
+      standardLoanBalance = standardRemainingWithInterest - baseMonthlyPayment;
+    }
+    
+    // Record balance at end of each year
+    if (month % 12 === 11) {
+      standardBalances.push(standardLoanBalance);
+    }
+  }
+  
+  // Ensure final balance is 0
+  if (standardBalances[standardBalances.length - 1] > 0) {
+    standardBalances[standardBalances.length - 1] = 0;
+  }
+
+  // Now calculate scenario with additional payments/changes
   let monthsToRepay = 0;
   let actualMonthsToRepay = null;
   let loanBalance = formData.value.loanAmount;
-  let standardLoanBalance = formData.value.loanAmount;
   let totalInterestPaid = 0;
-  let standardTotalInterest = 0;
-  const balances = [];
-  const standardBalances = [];
+  const balances = [loanBalance];
   const timeLabels = ['Start'];
   const paymentEvents = [];
   const startDate = new Date();
-
-  // Record initial balances
-  balances.push(loanBalance);
-  standardBalances.push(standardLoanBalance);
 
   // Process each month until loan is paid off or term is reached
   while (monthsToRepay < totalMonths && loanBalance > 0.01) {
@@ -882,7 +903,6 @@ const calculateMortgage = () => {
     
     // Calculate interest for this month
     const monthlyInterest = loanBalance * monthlyInterestRate;
-    const standardMonthlyInterest = standardLoanBalance * monthlyInterestRate;
     
     // Get additional payment for this month if any
     const additionalPayment = formData.value.additionalPayments.find(
@@ -903,7 +923,7 @@ const calculateMortgage = () => {
     // Add interest to balance before payment
     const remainingWithInterest = loanBalance + monthlyInterest;
     
-    // Track interest for actual loan
+    // Track interest
     totalInterestPaid += monthlyInterest;
     
     // Apply payment
@@ -916,15 +936,6 @@ const calculateMortgage = () => {
       // Regular payment
       loanBalance = remainingWithInterest - totalPayment;
     }
-    
-    // Process standard loan
-    const standardRemainingWithInterest = standardLoanBalance + standardMonthlyInterest;
-    if (standardRemainingWithInterest <= baseMonthlyPayment) {
-      standardLoanBalance = 0;
-    } else {
-      standardLoanBalance = standardRemainingWithInterest - baseMonthlyPayment;
-    }
-    standardTotalInterest += standardMonthlyInterest;
     
     // Record payment events
     if (additionalPayment > 0) {
@@ -950,53 +961,16 @@ const calculateMortgage = () => {
     // Record balances at the end of each year or when paid off
     if (month === 11 || loanBalance === 0) {
       balances.push(loanBalance);
-      // If this is the final year (year 30), force standard balance to 0
-      if (year === 29) {
-        standardBalances.push(0);
-      } else {
-        standardBalances.push(standardLoanBalance);
-      }
       timeLabels.push(`Year ${year + 1}`);
     }
     
     monthsToRepay++;
   }
 
-  // Add remaining standard loan balances if accelerated loan was paid off early
-  while (monthsToRepay < totalMonths) {
-    const month = monthsToRepay % 12;
-    const year = Math.floor(monthsToRepay / 12);
-    
-    // Process standard loan
-    const standardMonthlyInterest = standardLoanBalance * monthlyInterestRate;
-    const standardRemainingWithInterest = standardLoanBalance + standardMonthlyInterest;
-    if (standardRemainingWithInterest <= baseMonthlyPayment) {
-      standardLoanBalance = 0;
-    } else {
-      standardLoanBalance = standardRemainingWithInterest - baseMonthlyPayment;
-    }
-    standardTotalInterest += standardMonthlyInterest;
-    
-    // Record balances at the end of each year
-    if (month === 11) {
-      balances.push(0);
-      // If this is the final year (year 30), force standard balance to 0
-      if (year === 29) {
-        standardBalances.push(0);
-      } else {
-        standardBalances.push(standardLoanBalance);
-      }
-      timeLabels.push(`Year ${year + 1}`);
-    }
-    
-    monthsToRepay++;
-  }
-
-  // Ensure we have the final balance
-  if (standardBalances.length < totalMonths / 12 + 1) {
-    standardBalances.push(0); // Force final balance to 0
+  // Add remaining zero balances for accelerated loan if paid off early
+  while (balances.length < standardBalances.length) {
     balances.push(0);
-    timeLabels.push(`Year ${Math.floor((monthsToRepay - 1) / 12) + 1}`);
+    timeLabels.push(`Year ${timeLabels.length}`);
   }
 
   // If loan wasn't paid off, use total months
