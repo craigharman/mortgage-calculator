@@ -178,6 +178,23 @@ describe('MortgageCalculator.vue', () => {
       // Verify time saved text is generated
       expect(wrapper.vm.results.timeSavedText).toBeTruthy()
       expect(wrapper.vm.results.timeSavedText).toContain('earlier')
+
+      // Verify time to repay calculation
+      // With $4000 monthly payments, it should take about 11 years and 1 month
+      const expectedMonths = 133 // 11 years and 1 month
+      expect(Math.abs(wrapper.vm.results.actualMonthsToRepay - expectedMonths)).toBeLessThan(1)
+
+      // Verify standard loan balance plot
+      const standardBalances = wrapper.vm.chartData.standardBalances
+      expect(standardBalances.length).toBeGreaterThan(1)
+      
+      // Standard loan balance should decrease over time
+      for (let i = 1; i < standardBalances.length; i++) {
+        expect(standardBalances[i]).toBeLessThan(standardBalances[i-1])
+      }
+
+      // Standard loan should reach zero at end of term
+      expect(standardBalances[standardBalances.length - 1]).toBeLessThan(0.01)
     })
   })
 
@@ -249,6 +266,74 @@ describe('MortgageCalculator.vue', () => {
       // Final balance should be close to 0
       const lastIndex = wrapper.vm.chartData.balances.length - 1
       expect(wrapper.vm.chartData.balances[lastIndex]).toBeLessThan(1)
+    })
+  })
+
+  describe('Standard Loan Plot', () => {
+    it('correctly shows standard loan amortization over full term', async () => {
+      const testData = {
+        loanAmount: 500000,
+        interestRate: 5.94,
+        loanTerm: 30,
+        repaymentFrequency: 'monthly',
+        feeAmount: 0,
+        feeFrequency: 'annual',
+        additionalPayments: [],
+        repaymentChanges: [{
+          amount: 4000, // Higher than minimum payment
+          month: 1,
+          year: new Date().getFullYear()
+        }]
+      }
+
+      // Set the form data
+      wrapper.vm.formData = testData
+
+      // Trigger calculation
+      await wrapper.vm.calculateMortgage()
+      
+      // Wait for Vue to update the DOM
+      await wrapper.vm.$nextTick()
+
+      const standardBalances = wrapper.vm.chartData.standardBalances
+      const timeLabels = wrapper.vm.chartData.timeLabels
+
+      // Test 1: We should have enough points for each year plus start
+      expect(standardBalances.length).toBe(Math.ceil(testData.loanTerm) + 1)
+      
+      // Test 2: First balance should be loan amount
+      expect(standardBalances[0]).toBe(testData.loanAmount)
+      
+      // Test 3: Each balance should be less than the previous
+      for (let i = 1; i < standardBalances.length; i++) {
+        expect(standardBalances[i]).toBeLessThan(standardBalances[i-1])
+      }
+
+      // Test 4: Balance should decrease by roughly consistent percentage each year
+      // (allowing for some variation due to amortization)
+      const decreaseRates = []
+      for (let i = 1; i < standardBalances.length; i++) {
+        if (standardBalances[i-1] > 0) {
+          const rate = (standardBalances[i-1] - standardBalances[i]) / standardBalances[i-1]
+          decreaseRates.push(rate)
+        }
+      }
+      
+      // Check rates are within reasonable range of each other
+      for (let i = 1; i < decreaseRates.length; i++) {
+        const rateChange = Math.abs(decreaseRates[i] - decreaseRates[i-1])
+        expect(rateChange).toBeLessThan(0.1) // Allow 10% variation between years
+      }
+
+      // Test 5: Final balance should be very close to zero
+      expect(standardBalances[standardBalances.length - 1]).toBeLessThan(1)
+      
+      // Test 6: Time labels should match number of balances
+      expect(timeLabels.length).toBe(standardBalances.length)
+      expect(timeLabels[0]).toBe('Start')
+      for (let i = 1; i < timeLabels.length; i++) {
+        expect(timeLabels[i]).toBe(`Year ${i}`)
+      }
     })
   })
 })
