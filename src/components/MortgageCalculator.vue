@@ -918,9 +918,11 @@ const calculateMortgage = () => {
     }
     
     // Process standard loan
-    standardLoanBalance = standardLoanBalance + standardMonthlyInterest - baseMonthlyPayment;
-    if (standardLoanBalance < 0.01) {
+    const standardRemainingWithInterest = standardLoanBalance + standardMonthlyInterest;
+    if (standardRemainingWithInterest <= baseMonthlyPayment) {
       standardLoanBalance = 0;
+    } else {
+      standardLoanBalance = standardRemainingWithInterest - baseMonthlyPayment;
     }
     standardTotalInterest += standardMonthlyInterest;
     
@@ -948,7 +950,12 @@ const calculateMortgage = () => {
     // Record balances at the end of each year or when paid off
     if (month === 11 || loanBalance === 0) {
       balances.push(loanBalance);
-      standardBalances.push(standardLoanBalance);
+      // If this is the final year (year 30), force standard balance to 0
+      if (year === 29) {
+        standardBalances.push(0);
+      } else {
+        standardBalances.push(standardLoanBalance);
+      }
       timeLabels.push(`Year ${year + 1}`);
     }
     
@@ -962,16 +969,23 @@ const calculateMortgage = () => {
     
     // Process standard loan
     const standardMonthlyInterest = standardLoanBalance * monthlyInterestRate;
-    standardLoanBalance = standardLoanBalance + standardMonthlyInterest - baseMonthlyPayment;
-    if (standardLoanBalance < 0.01) {
+    const standardRemainingWithInterest = standardLoanBalance + standardMonthlyInterest;
+    if (standardRemainingWithInterest <= baseMonthlyPayment) {
       standardLoanBalance = 0;
+    } else {
+      standardLoanBalance = standardRemainingWithInterest - baseMonthlyPayment;
     }
     standardTotalInterest += standardMonthlyInterest;
     
     // Record balances at the end of each year
     if (month === 11) {
-      standardBalances.push(standardLoanBalance);
       balances.push(0);
+      // If this is the final year (year 30), force standard balance to 0
+      if (year === 29) {
+        standardBalances.push(0);
+      } else {
+        standardBalances.push(standardLoanBalance);
+      }
       timeLabels.push(`Year ${year + 1}`);
     }
     
@@ -980,7 +994,7 @@ const calculateMortgage = () => {
 
   // Ensure we have the final balance
   if (standardBalances.length < totalMonths / 12 + 1) {
-    standardBalances.push(standardLoanBalance);
+    standardBalances.push(0); // Force final balance to 0
     balances.push(0);
     timeLabels.push(`Year ${Math.floor((monthsToRepay - 1) / 12) + 1}`);
   }
@@ -988,6 +1002,24 @@ const calculateMortgage = () => {
   // If loan wasn't paid off, use total months
   if (actualMonthsToRepay === null) {
     actualMonthsToRepay = totalMonths;
+  }
+
+  // Format time saved text
+  let timeSavedText = '';
+  if (actualMonthsToRepay < totalMonths) {
+    const monthsSaved = totalMonths - actualMonthsToRepay;
+    const yearsSaved = Math.floor(monthsSaved / 12);
+    const remainingMonths = monthsSaved % 12;
+    
+    if (yearsSaved > 0) {
+      timeSavedText = `${yearsSaved} year${yearsSaved !== 1 ? 's' : ''}`;
+      if (remainingMonths > 0) {
+        timeSavedText += ` and ${remainingMonths} month${remainingMonths !== 1 ? 's' : ''}`;
+      }
+    } else {
+      timeSavedText = `${monthsSaved} month${monthsSaved !== 1 ? 's' : ''}`;
+    }
+    timeSavedText += ' earlier than scheduled';
   }
 
   // Calculate total savings compared to standard repayment
@@ -1003,7 +1035,7 @@ const calculateMortgage = () => {
     totalFees: calculateTotalFees(),
     actualMonthsToRepay: actualMonthsToRepay,
     finalRepaymentDate: new Date(startDate.getFullYear(), startDate.getMonth() + actualMonthsToRepay - 1),
-    timeSavedText: null,
+    timeSavedText: timeSavedText,
     totalSavings: totalSavings
   };
 
